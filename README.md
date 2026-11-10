@@ -26,3 +26,13 @@ El selector muestra el proveedor actual y recuerda la elección. El botón para 
 Las temporadas y episodios proceden de TMDB. Puedes elegirlos antes de reproducir y usar anterior/siguiente, incluso entre temporadas. Al volver a una serie se recupera el último episodio abierto. Los cambios hechos dentro del iframe, incluido su avance automático, no actualizan los selectores externos. La página no recibe eventos de progreso del proveedor.
 
 **Seguir viendo** conserva los últimos 18 títulos y el episodio seleccionado, sin guardar minutos de reproducción. Puedes borrar el historial. Se almacena en este navegador con `localStorage`, igual que el último proveedor. Si el navegador bloquea el almacenamiento, funciona durante la sesión y muestra un aviso al intentar guardar.
+
+## Chrome, HTTPS y diagnóstico
+
+El iframe original solo incluía `allow="encrypted-media"`. Ahora delega `autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write`, incluye `allowfullscreen` y abre tras pulsar Reproducir. Chrome puede exigir otro clic dentro del video para reproducir con sonido según sus políticas de autoplay. [Política oficial de Chrome](https://developer.chrome.com/blog/autoplay/).
+
+En la prueba de Chrome del 10 de noviembre de 2026 se ensayaron `origin` y `strict-origin-when-cross-origin` desde un servidor HTTP local. Con ambas, `player.videasy.net` respondió 301 hacia `player.videasy.to` y la navegación falló con `net::ERR_CERT_AUTHORITY_INVALID`. Ese fallo de confianza del certificado en este entorno impidió verificar el video. No permite afirmar que sea la causa de todos los fallos anteriores en otros equipos. Se conserva `strict-origin-when-cross-origin`, que transmite el origen en peticiones entre dominios y evita enviar el referente al bajar de HTTPS a HTTP. Se mantienen las URLs originales solicitadas. [Referencia de iframe y referrerpolicy](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe).
+
+Los recursos externos declarados por esta página usan HTTPS. La página no añade CSP. El contenido mixto, la CSP y los certificados de los recursos internos del proveedor dependen de su servidor y deben revisarse en la consola del navegador cuando su iframe sea accesible. Si aparece un error de certificado, debe resolverse en el proveedor o en la configuración de confianza del equipo.
+
+GitHub Pages debe servirse por HTTPS, con **Enforce HTTPS** activado. Para desarrollo se admite `http://localhost` o `http://127.0.0.1` mediante `npx serve .` o `python -m http.server 8000`. Al abrir por `file://` se muestra ayuda y se evita importar módulos, que los navegadores bloquean en ese contexto. Un sitio HTTP público muestra un aviso para usar HTTPS.

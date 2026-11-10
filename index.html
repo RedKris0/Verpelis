@@ -17,6 +17,7 @@
     <a class="header-link" href="#catalog">Explorar <span aria-hidden="true">↗</span></a>
   </header>
   <main class="container">
+    <p id="protocol-warning" class="status" role="alert" hidden></p>
     <p id="storage-warning" class="status" role="status" hidden></p>
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-glow" aria-hidden="true"></div>
@@ -58,11 +59,26 @@
       <section id="playback" aria-label="Reproductor" hidden>
         <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
         <p id="provider-note" class="player-note"></p>
-        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="encrypted-media" allowfullscreen></iframe>
+        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
       </section>
     </div>
   </dialog>
-  <script type="module" src="./js/app.js"></script>
+  <script>
+    const protocolWarning = document.getElementById('protocol-warning');
+    if (location.protocol === 'file:') {
+      protocolWarning.hidden = false;
+      protocolWarning.textContent = 'Abre la web desde un servidor. En esta carpeta ejecuta python -m http.server 8000 o npx serve . y visita la dirección HTTP indicada. Para publicarla usa GitHub Pages con HTTPS.';
+    } else {
+      if (location.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+        protocolWarning.hidden = false;
+        protocolWarning.textContent = 'Usa la dirección HTTPS de este sitio. En GitHub Pages activa Enforce HTTPS.';
+      }
+      import('./js/app.js').catch(() => {
+        protocolWarning.hidden = false;
+        protocolWarning.textContent = 'No se pudo iniciar la aplicación. Comprueba la conexión y que el servidor publique la carpeta js con sus módulos JavaScript.';
+      });
+    }
+  </script>
 </body>
 </html>
