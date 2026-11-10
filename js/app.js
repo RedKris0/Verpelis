@@ -1,4 +1,4 @@
-import { APP_NAME } from './config.js';
+import { APP_NAME, TMDB_API_KEY } from './config.js';
 import { buildMovieURL, buildTVURL } from './providers.js';
 
 const $ = (id) => document.getElementById(id);
@@ -28,11 +28,12 @@ function message(id, text = '') {
 }
 
 async function tmdb(path, params = {}, signal) {
-  const key = $('apikey').value.trim();
-  if (!key) throw new Error('Falta la API key de TMDB.');
+  const key = TMDB_API_KEY.trim();
+  if (!key) throw new Error('La API key de TMDB no es válida, revisa js/config.js');
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   url.search = new URLSearchParams({ api_key: key, language: 'es-ES', ...params });
   const response = await fetch(url, { signal });
+  if (response.status === 401) throw new Error('La API key de TMDB no es válida, revisa js/config.js');
   if (!response.ok) throw new Error('No pudimos consultar TMDB. Revisa tu conexión y la API key.');
   return response.json();
 }

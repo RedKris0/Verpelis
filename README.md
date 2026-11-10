@@ -10,7 +10,7 @@ Desde la carpeta del proyecto ejecuta `python -m http.server 8000` o `npx serve 
 
 - `js/config.js` contiene el nombre de la aplicación, definido una sola vez en `APP_NAME` y aplicado al título, header y footer.
 - `js/providers.js` contiene las URLs del reproductor.
-- La API key de TMDB se configura temporalmente en el campo existente de la página.
+- `TMDB_API_KEY` en `js/config.js` conserva la clave existente y se usa internamente. La interfaz no muestra controles para verla ni editarla. Sigue siendo pública al inspeccionar los archivos o las peticiones del navegador.
 - `js/app.js` contiene la interacción y `css/styles.css` los estilos.
 
 ## GitHub Pages
