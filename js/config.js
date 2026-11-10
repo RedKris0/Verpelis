@@ -1,1 +1,1 @@
-export const APP_NAME = 'Marquesina';
+export const APP_NAME = 'Fotograma';

@@ -1,4 +1,4 @@
-# Marquesina
+# Fotograma
 
 Buscador personal de películas y series con TMDB y un reproductor embebido.
 
@@ -8,7 +8,7 @@ Desde la carpeta del proyecto ejecuta `python -m http.server 8000` o `npx serve 
 
 ## Configuración
 
-- `js/config.js` contiene la identidad de la aplicación.
+- `js/config.js` contiene el nombre de la aplicación, definido una sola vez en `APP_NAME` y aplicado al título, header y footer.
 - `js/providers.js` contiene las URLs del reproductor.
 - La API key de TMDB se configura temporalmente en el campo existente de la página.
 - `js/app.js` contiene la interacción y `css/styles.css` los estilos.

@@ -1,86 +1,172 @@
 import { APP_NAME } from './config.js';
 import { buildMovieURL, buildTVURL } from './providers.js';
 
-document.title = `${APP_NAME} — buscador para Videasy`;
-const perf = document.getElementById('perf');
-for(let i=0;i<40;i++){ const s=document.createElement('span'); perf.appendChild(s); }
+const $ = (id) => document.getElementById(id);
+const results = $('results');
+const dialog = $('detail-dialog');
+const player = $('player');
+let currentPage = 0;
+let totalPages = 0;
+let selected = null;
+let opener = null;
+let searchController;
+let detailController;
 
-const q = document.getElementById('q');
-const go = document.getElementById('go');
-const apikey = document.getElementById('apikey');
-const results = document.getElementById('results');
-const status = document.getElementById('status');
+document.title = `${APP_NAME} — Tu próxima gran historia`;
+document.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = APP_NAME; });
 
-const overlay = document.getElementById('overlay');
-const player = document.getElementById('player');
-const nowPlaying = document.getElementById('nowPlaying');
-const closeBtn = document.getElementById('closeBtn');
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
 
-async function search(){
-  const query = q.value.trim();
-  const key = apikey.value.trim();
-  if(!query) return;
-  if(!key){ status.style.display='block'; status.textContent='Falta la API key de TMDB.'; return; }
+function message(id, text = '') {
+  $(id).textContent = text;
+  $(id).hidden = !text;
+}
 
-  results.innerHTML = '';
-  status.style.display='block';
-  status.textContent = 'Buscando…';
+async function tmdb(path, params = {}, signal) {
+  const key = $('apikey').value.trim();
+  if (!key) throw new Error('Falta la API key de TMDB.');
+  const url = new URL(`https://api.themoviedb.org/3${path}`);
+  url.search = new URLSearchParams({ api_key: key, language: 'es-ES', ...params });
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error('No pudimos consultar TMDB. Revisa tu conexión y la API key.');
+  return response.json();
+}
 
-  try{
-    const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${key}&query=${encodeURIComponent(query)}&language=es-ES`);
-    const data = await res.json();
-    const items = (data.results || []).filter(r => r.media_type === 'movie' || r.media_type === 'tv');
+function titleOf(item) { return item.title || item.name || 'Título sin nombre'; }
+function yearOf(item) { return (item.release_date || item.first_air_date || '').slice(0, 4) || 'Sin fecha'; }
+function ratingOf(item) { return item.vote_average ? `★ ${item.vote_average.toFixed(1)}` : 'Sin valoración'; }
 
-    if(items.length === 0){
-      status.textContent = 'No se encontró nada. Prueba con otro título.';
-      return;
+function poster(item) {
+  const fallback = element('div', 'poster-fallback', 'Sin póster');
+  if (!item.poster_path) return fallback;
+  const img = element('img', 'poster');
+  img.src = `https://image.tmdb.org/t/p/w342${item.poster_path}`;
+  img.alt = `Póster de ${titleOf(item)}`;
+  img.loading = 'lazy';
+  img.width = 342;
+  img.height = 513;
+  img.addEventListener('error', () => img.replaceWith(fallback), { once: true });
+  return img;
+}
+
+function card(item) {
+  const button = element('button', 'card');
+  button.type = 'button';
+  button.setAttribute('aria-label', `Ver detalle de ${titleOf(item)}`);
+  const image = element('div', 'poster-wrap');
+  image.append(poster(item), element('span', 'badge', item.media_type === 'tv' ? 'Serie' : 'Película'));
+  const meta = element('span', 'card-meta');
+  meta.append(element('span', '', yearOf(item)), element('span', 'rating', ratingOf(item)));
+  button.append(image, element('span', 'card-title', titleOf(item)), meta);
+  button.addEventListener('click', () => openDetail(item, button));
+  return button;
+}
+
+async function search(append = false) {
+  searchController?.abort();
+  const controller = new AbortController();
+  searchController = controller;
+  const query = $('q').value.trim();
+  const page = append ? currentPage + 1 : 1;
+  $('catalog-title').textContent = query ? `Resultados para «${query}»` : 'En el radar';
+  $('more').hidden = true;
+  $('result-count').textContent = '';
+  results.setAttribute('aria-busy', 'true');
+  message('status');
+  if (!append) {
+    results.replaceChildren();
+    for (let i = 0; i < 12; i++) {
+      const skeleton = element('div', 'skeleton skeleton-card');
+      skeleton.setAttribute('aria-hidden', 'true');
+      results.append(skeleton);
     }
-    status.style.display='none';
-
-    items.forEach(item => {
-      const title = item.title || item.name;
-      const date = item.release_date || item.first_air_date || '';
-      const year = date ? date.slice(0,4) : '—';
-      const poster = item.poster_path
-        ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
-        : null;
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <span class="badge">${item.media_type === 'tv' ? 'Serie' : 'Película'}</span>
-        ${poster
-          ? `<img class="poster" src="${poster}" alt="${title}">`
-          : `<div class="poster" style="display:flex;align-items:center;justify-content:center;color:#5f5a53;font-size:12px;padding:10px;text-align:center;">sin imagen</div>`}
-        <div class="meta">
-          <div class="title">${title}</div>
-          <div class="year">${year}</div>
-        </div>
-      `;
-      card.addEventListener('click', () => openPlayer(item.media_type, item.id, title, year));
-      results.appendChild(card);
-    });
-  }catch(err){
-    status.style.display='block';
-    status.textContent = 'Error buscando en TMDB. Revisa tu API key o tu conexión.';
+  }
+  try {
+    const data = await tmdb(query ? '/search/multi' : '/trending/all/week', { page, ...(query ? { query } : {}) }, controller.signal);
+    if (controller.signal.aborted) return;
+    if (!append) results.replaceChildren();
+    const items = (data.results || []).filter((item) => ['movie', 'tv'].includes(item.media_type));
+    results.append(...items.map(card));
+    currentPage = page;
+    totalPages = Math.min(data.total_pages || 0, 500);
+    $('result-count').textContent = `${results.children.length} títulos`;
+    $('more').hidden = currentPage >= totalPages;
+    if (!results.children.length) message('status', 'Ninguna historia por aquí todavía. Prueba con otro título.');
+  } catch (error) {
+    if (controller.signal.aborted) return;
+    if (!append) results.replaceChildren();
+    message('status', error.message || 'No pudimos conectar con TMDB. Inténtalo de nuevo.');
+    $('more').hidden = !append;
+  } finally {
+    if (searchController === controller) results.setAttribute('aria-busy', 'false');
   }
 }
 
-function openPlayer(type, id, title, year){
-  overlay.classList.add('open');
-  if(type === 'tv'){
-    nowPlaying.innerHTML = `${title} <span>· ${year}</span>`;
-    player.src = buildTVURL(id, 1, 1);
-  } else {
-    nowPlaying.innerHTML = `${title} <span>· ${year}</span>`;
-    player.src = buildMovieURL(id);
+async function openDetail(item, trigger) {
+  detailController?.abort();
+  detailController = new AbortController();
+  const controller = detailController;
+  selected = null;
+  opener = trigger;
+  $('detail-content').hidden = true;
+  $('playback').hidden = true;
+  player.removeAttribute('src');
+  message('detail-status', 'Preparando tu próxima historia…');
+  dialog.showModal();
+  document.body.classList.add('modal-open');
+  $('close').focus();
+  try {
+    const detail = await tmdb(`/${item.media_type}/${item.id}`, {}, controller.signal);
+    if (controller.signal.aborted) return;
+    selected = { ...detail, media_type: item.media_type };
+    $('detail-title').textContent = titleOf(selected);
+    $('detail-type').textContent = item.media_type === 'tv' ? 'SERIE' : 'PELÍCULA';
+    $('detail-meta').textContent = `${yearOf(selected)} · ${ratingOf(selected)}`;
+    $('detail-genres').textContent = (detail.genres || []).map((genre) => genre.name).join(' · ');
+    $('detail-overview').textContent = detail.overview || 'Esta historia todavía no tiene sinopsis disponible.';
+    $('detail-poster').replaceChildren(poster(selected));
+    $('detail-content').hidden = false;
+    message('detail-status');
+  } catch (error) {
+    if (!controller.signal.aborted) message('detail-status', error.message);
   }
 }
 
-closeBtn.addEventListener('click', () => {
-  overlay.classList.remove('open');
-  player.src = '';
+function play() {
+  if (!selected) return;
+  $('now-playing').textContent = titleOf(selected);
+  player.src = selected.media_type === 'tv' ? buildTVURL(selected.id, 1, 1) : buildMovieURL(selected.id);
+  $('playback').hidden = false;
+  $('playback').scrollIntoView({ block: 'nearest' });
+}
+
+$('search-form').addEventListener('submit', (event) => { event.preventDefault(); search(); });
+$('more').addEventListener('click', () => search(true));
+$('play').addEventListener('click', play);
+$('close').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', (event) => {
+  const rect = dialog.getBoundingClientRect();
+  if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+});
+dialog.addEventListener('close', () => {
+  detailController?.abort();
+  player.removeAttribute('src');
+  $('playback').hidden = true;
+  document.body.classList.remove('modal-open');
+  opener?.focus();
+});
+dialog.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab') return;
+  const controls = [...dialog.querySelectorAll('button, input, select, a[href], iframe')].filter((node) => !node.disabled && node.getClientRects().length);
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 
-go.addEventListener('click', search);
-q.addEventListener('keydown', e => { if(e.key === 'Enter') search(); });
+search();
