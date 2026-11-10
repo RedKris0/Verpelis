@@ -97,6 +97,15 @@ dialog::backdrop { background: #05060be8; backdrop-filter: blur(8px); }
 iframe { display: block; border: 0; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; }
 .now-playing { font-size: 14px; line-height: 1.7; }
 .player-note { font-size: 11px; color: var(--muted); line-height: 1.7; }
+.history { padding-bottom: 12px; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.field label { color: var(--muted); font-size: 12px; }
+select { width: 100%; min-height: 46px; padding: 10px; background: var(--surface); border: 1px solid #626672; color: var(--text); border-radius: 8px; }
+.episode-controls, .player-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin-top: 24px; }
+.episode-controls .field { flex-basis: 150px; }
+.episode-buttons { display: flex; gap: 8px; }
+.player-toolbar .field { max-width: 300px; }
+.history .card-meta { flex-wrap: wrap; }
 @media (min-width: 600px) {
   .container { width: min(1240px, calc(100% - 64px)); }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px 22px; }

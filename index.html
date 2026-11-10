@@ -17,6 +17,7 @@
     <a class="header-link" href="#catalog">Explorar <span aria-hidden="true">↗</span></a>
   </header>
   <main class="container">
+    <p id="storage-warning" class="status" role="status" hidden></p>
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-glow" aria-hidden="true"></div>
       <p class="eyebrow"><span aria-hidden="true">✦</span> TU PRÓXIMA GRAN HISTORIA</p>
@@ -29,6 +30,11 @@
         <button class="button primary" type="submit">Buscar <span aria-hidden="true">↗</span></button>
       </form>
       <p class="search-hint">Una buena noche empieza con una buena historia.</p>
+    </section>
+    <section id="history" class="catalog history" aria-labelledby="history-title" hidden>
+      <div class="section-heading"><div><p class="eyebrow">TU ÚLTIMA SESIÓN</p><h2 id="history-title">Seguir viendo</h2></div><button id="clear-history" class="button secondary" type="button">Borrar historial</button></div>
+      <div id="history-results" class="grid"></div>
+      <p class="player-note">Se recuerda el último episodio abierto desde esta página.</p>
     </section>
     <section id="catalog" class="catalog" aria-labelledby="catalog-title">
       <div class="section-heading"><div><p class="eyebrow">ELIGE TU PRÓXIMO PLAN</p><h2 id="catalog-title">En el radar</h2></div><span id="result-count" class="muted"></span></div>
@@ -43,7 +49,18 @@
     <p id="detail-status" class="status" role="status" hidden></p>
     <div id="detail-content" hidden>
       <div class="detail-layout"><div id="detail-poster" class="detail-poster"></div><div class="detail-copy"><p id="detail-type" class="eyebrow"></p><h2 id="detail-title">Detalle</h2><p id="detail-meta" class="detail-meta"></p><p id="detail-genres" class="genres"></p><p id="detail-overview" class="overview"></p><button id="play" class="button primary" type="button"><span aria-hidden="true">▶</span> Reproducir</button></div></div>
-      <section id="playback" aria-label="Reproductor" hidden><p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="encrypted-media" allowfullscreen></iframe><p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p></section>
+      <div id="episode-controls" class="episode-controls" hidden>
+        <div class="field"><label for="season">Temporada</label><select id="season"></select></div>
+        <div class="field"><label for="episode">Episodio</label><select id="episode"></select></div>
+        <div class="episode-buttons"><button id="previous" class="button secondary" type="button">← Anterior</button><button id="next" class="button secondary" type="button">Siguiente →</button></div>
+      </div>
+      <p id="episode-status" class="status" role="status" hidden></p>
+      <section id="playback" aria-label="Reproductor" hidden>
+        <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
+        <p id="provider-note" class="player-note"></p>
+        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="encrypted-media" allowfullscreen></iframe>
+        <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
+      </section>
     </div>
   </dialog>
   <script type="module" src="./js/app.js"></script>
