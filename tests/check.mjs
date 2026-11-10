@@ -21,12 +21,14 @@ const urls = (sources) => Object.fromEntries(sources.map(({ id, url }) => [id, u
 assert.deepEqual(urls(movieSources), {
   'internet-archive': 'https://archive.org/embed/HouseOnHauntedHill1959',
   vidspark: 'https://vidspark.to/movie/15856',
+  vidrift: 'https://embed.vidrift.net/embed/movie/15856',
   '2embed-cc': 'https://www.2embed.cc/embed/15856',
   'vidsrc-to': 'https://vidsrc.to/embed/movie/15856',
   autoembed: 'https://autoembed.me/movie/tmdb/15856',
 });
 assert.deepEqual(urls(episodeSources), {
   vidspark: 'https://vidspark.to/tv/4087/2/3',
+  vidrift: 'https://embed.vidrift.net/embed/tv/4087/2/3?hide=next,episodes',
   '2embed-cc': 'https://www.2embed.cc/embedtv/4087&s=2&e=3',
   'vidsrc-to': 'https://vidsrc.to/embed/tv/4087/2/3',
   autoembed: 'https://autoembed.me/tv/tmdb/4087-2-3',
@@ -73,7 +75,7 @@ assert.equal(selectSource(movieSources, 'vidspark', states(movie), secure).id, '
 assert.equal(states({ ...episode, episode: 4 })('2embed-cc'), Availability.UNKNOWN);
 assert.equal(states({ ...episode, season: 3 })('2embed-cc'), Availability.UNKNOWN);
 assert.equal(selectSource(episodeSources, 'vidspark',
-  (id) => id === 'vidspark' ? Availability.ERROR : Availability.UNKNOWN, insecure).id, '2embed-cc');
+  (id) => id === 'vidspark' ? Availability.ERROR : Availability.UNKNOWN, insecure).id, 'vidrift');
 assert.deepEqual(Object.values(Availability).sort(), ['AVAILABLE', 'ERROR', 'UNAVAILABLE', 'UNKNOWN']);
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
@@ -99,3 +101,25 @@ assert.doesNotMatch(app, /player\.addEventListener\('load'/);
 assert.match(app, /dialog\.addEventListener\('close',[\s\S]*?clearSources\(\)/);
 
 console.log('Comprobaciones de configuración, selección, disponibilidad y seguridad superadas.');
+
+const { parseSubtitles, readSubtitleFile, subtitleQuery, vidRiftPosition, vidSparkPosition } = await import('../js/subtitles.js');
+const srt = '\uFEFF1\r\n00:00:01,500 --> 00:00:03,250\r\n<i>Hola</i>\r\nMundo\r\n\r\n2\r\n00:00:05,000 --> 00:00:04,000\r\nInválido';
+assert.deepEqual(parseSubtitles(srt), [{ start: 1.5, end: 3.25, caption: 'Hola\nMundo' }]);
+assert.deepEqual(parseSubtitles('WEBVTT\n\nNOTE comentario\n\n00:05.000 --> 00:06.000 align:center\nHola'),
+  [{ start: 5, end: 6, caption: 'Hola' }]);
+await assert.rejects(readSubtitleFile(new Blob(['archivo incorrecto'])), /SRT o WebVTT/);
+assert.equal(subtitleQuery(movie, 'es').get('tmdb_id'), '15856');
+assert.equal(subtitleQuery(episode, 'ea').get('parent_tmdb_id'), '4087');
+assert.equal(subtitleQuery(episode, 'ea').get('season_number'), '2');
+assert.equal(subtitleQuery(episode, 'ea').get('episode_number'), '3');
+const frame = {};
+const data = { source: 'vidspark-player', event: 'timeupdate', currentTime: 60 };
+assert.equal(vidSparkPosition({ source: frame, origin: 'https://vidspark.to', data }, frame), data);
+assert.equal(vidSparkPosition({ source: {}, origin: 'https://vidspark.to', data }, frame), null);
+assert.equal(vidSparkPosition({ source: frame, origin: 'https://example.com', data }, frame), null);
+console.log('Comprobaciones de subtítulos y mensajes del reproductor superadas.');
+
+const riftEvent = { source: frame, origin: 'https://embed.vidrift.net',
+  data: { type: 'vidrift:paused', tmdbId: '4087', mediaType: 'tv', season: 2, episode: 3, currentTime: 42 } };
+assert.deepEqual(vidRiftPosition(riftEvent, frame, episode), { currentTime: 42, running: false });
+assert.equal(vidRiftPosition(riftEvent, frame, { ...episode, episode: 4 }), null);

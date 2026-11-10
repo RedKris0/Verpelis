@@ -1,3 +1,4 @@
+import { setupSubtitleControls } from './subtitle-controls.js';
 import { APP_NAME, TMDB_API_KEY } from './config.js';
 import { Availability, getSources, playbackKey, selectSource } from './providers.js';
 
@@ -5,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 const results = $('results');
 const dialog = $('detail-dialog');
 const player = $('player');
+const updateSubtitles = setupSubtitleControls(player);
+let featuredItem;
 let currentPage = 0;
 let totalPages = 0;
 let currentQuery = '';
@@ -51,6 +54,7 @@ function writeStorage(key, value) {
 }
 
 function renderHistory() {
+  $('history-link').hidden = !history.length;
   $('history').hidden = !history.length;
   $('history-results').replaceChildren(...history.map(card));
 }
@@ -121,6 +125,20 @@ function poster(item) {
   return img;
 }
 
+function feature(items) {
+  const item = items.find(({ backdrop_path }) => typeof backdrop_path === 'string' && /^\/[\w.-]+$/.test(backdrop_path));
+  if (!item) return;
+  featuredItem = item;
+  const image = $('hero-backdrop');
+  image.src = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
+  image.hidden = false;
+  $('featured-title').textContent = `${titleOf(item)} ↗`;
+  $('featured-title').hidden = false;
+}
+
+$('featured-title').addEventListener('click', (event) => openDetail(featuredItem, event.currentTarget));
+$('hero-backdrop').addEventListener('error', () => { $('hero-backdrop').hidden = true; });
+
 function card(item) {
   const button = element('button', 'card');
   button.type = 'button';
@@ -163,6 +181,7 @@ async function search(append = false) {
     if (!Array.isArray(data.results)) throw new Error('TMDB devolvió una lista inesperada. Vuelve a intentarlo.');
     const items = data.results.filter((item) => item && Number.isSafeInteger(item.id) && item.id > 0 && ['movie', 'tv'].includes(item.media_type));
     results.append(...items.map(card));
+    if (!query && !append) feature(items);
     currentPage = page;
     totalPages = Math.min(data.total_pages || 0, 500);
     $('result-count').textContent = `${results.children.length} títulos`;
@@ -299,6 +318,7 @@ function updateOptions() {
 }
 
 function clearSources() {
+  updateSubtitles();
   player.removeAttribute('src');
   activeSource = null;
   playbackTarget = null;
@@ -363,6 +383,7 @@ function play({ retry = false } = {}) {
   $('playback').hidden = false;
   const reload = retry || player.getAttribute('src') !== activeSource.url || player.hasAttribute('sandbox') !== safe;
   if (blocked || reload) player.removeAttribute('src');
+  updateSubtitles({ ...playbackTarget, key: playbackKey(playbackTarget, '') }, blocked ? null : activeSource.id, reload);
   if (reload) {
     if (safe) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
     else player.removeAttribute('sandbox');
@@ -463,7 +484,7 @@ dialog.addEventListener('close', () => {
 });
 dialog.addEventListener('keydown', (event) => {
   if (event.key !== 'Tab') return;
-  const controls = [...dialog.querySelectorAll('button, input, select, a[href], iframe')].filter((node) => !node.disabled && node.getClientRects().length);
+  const controls = [...dialog.querySelectorAll('button, input, select, a[href], iframe, summary')].filter((node) => !node.disabled && node.getClientRects().length);
   const first = controls[0];
   const last = controls.at(-1);
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }

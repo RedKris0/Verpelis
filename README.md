@@ -96,3 +96,20 @@ Pruebas en Chrome 157, con sandbox activo y contenido remoto real. La matriz us�
 | *Interstellar* (2014) | 157336 · VidSpark | Tiempo de espera agotado antes de detectar video. Disponibilidad sin verificar. |
 
 Para repetir la matriz, busca cada título y comprueba año, edición, temporada y episodio antes de cambiar de fuente. Si empieza el video, coteja su contenido y duración con la ficha antes de registrar el resultado. Un tiempo de espera agotado indica una prueba inconclusa. Queda pendiente comprobar fuentes adicionales para los años setenta y para más temporadas y series de 2010 a 2015.
+
+## Subtítulos externos
+
+En el modal de reproducción abre **Subtítulos externos** y carga un archivo SRT o WebVTT. Fotograma superpone el texto sobre su propio contenedor de video. La pista se conserva al cambiar de proveedor para el mismo título o episodio. Usa **Pantalla completa con subtítulos** para ampliar ese contenedor. La pantalla completa del reproductor externo muestra sus propios controles y subtítulos.
+
+- Con un reproductor que emite eventos compatibles, Fotograma usa su reloj. **Sincronizar con el reproductor** vuelve a activar ese modo después de usar el reloj manual.
+- Para cualquier otra fuente, introduce la posición actual del video en segundos y pulsa **Iniciar subtítulos** al reanudar el video. Si pausas o saltas a otra escena, ajusta el reloj de los subtítulos. Un retraso positivo muestra las líneas más tarde y uno negativo las adelanta.
+- Para buscar dentro de Fotograma, crea una [clave de OpenSubtitles](https://opensubtitles.tawk.help/article/getting-started), introdúcela en el panel y elige el idioma. La búsqueda usa el ID de TMDB y, para episodios, la temporada y el episodio. La clave y el token opcional se mantienen en la página durante la sesión y se envían únicamente a la API de OpenSubtitles. Si la API permite generar un enlace pero bloquea la lectura del archivo en el navegador, descarga el archivo y cárgalo manualmente. El panel también enlaza al sitio de OpenSubtitles.
+
+Chrome verificó la carga local, la pantalla completa, la conservación de la pista al cambiar de proveedor y el flujo de búsqueda y descarga con respuestas simuladas. La consulta de prueba a la API real sin credenciales devolvió 403. La búsqueda autenticada queda pendiente de probar con una clave válida. La prueba con el iframe público de VidSpark reprodujo video, pero no entregó los eventos de tiempo anunciados en su [documentación](https://vidspark.to/#player-api). En ese caso se puede usar el reloj manual.
+
+## Proveedores independientes identificados en Chouflix
+
+El [selector público de Chouflix](https://chouflix.com/es/watch/movie/1792170) muestra proveedores de terceros. Se usa como referencia para identificar nombres. Fotograma integra las URLs publicadas por cada proveedor.
+
+- [VidRift](https://vidrift.net/docs/) está integrado directamente por TMDB para películas y episodios. En Chrome, *The Thing* (1982) reprodujo desde el iframe directo y una pista SRT de prueba siguió el reloj real de VidRift. VidRift documenta carga nativa de archivos de subtítulos, ajuste de sincronía y eventos de reproducción. Requiere desactivar el modo seguro de esa fuente de forma explícita.
+- [PrimeSrc](https://primesrc.me/) cargó el selector de fuente y el título, sin reproducción verificada. [VidZee](https://vidzee.wtf/) devolvió 404 para el título de prueba. Chrome rechazó el certificado de los endpoints probados de [VidNest](https://vidnest.fun/) y [VixSrc](https://vixsrc.to/). Se mantienen fuera del selector.

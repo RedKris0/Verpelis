@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="Encuentra películas y series, explora sus historias y retoma tu última sesión de cine desde un lugar sencillo y personal.">
-  <meta name="theme-color" content="#101114">
+  <meta name="theme-color" content="#111012">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Tu próxima gran historia">
   <meta property="og:description" content="Películas que se quedan contigo. Series para un capítulo más. Encuentra tu próxima historia.">
@@ -14,44 +14,45 @@
   <title>Cine en casa</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
   <a class="skip-link" href="#catalog">Saltar al catálogo</a>
   <header class="site-header container">
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">f</span><span data-app-name></span><span class="brand-dot" aria-hidden="true">.</span></a>
-    <a class="header-link" href="#catalog">Explorar <span aria-hidden="true">↗</span></a>
+    <nav aria-label="Principal"><a class="header-link" id="history-link" href="#history" hidden>Seguir viendo</a><a class="header-link" href="#catalog">Explorar <span aria-hidden="true">↗</span></a></nav>
   </header>
   <main class="container">
     <p id="protocol-warning" class="status" role="alert" hidden></p>
     <p id="storage-warning" class="status" role="status" hidden></p>
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-glow" aria-hidden="true"></div>
-      <p class="eyebrow"><span aria-hidden="true">✦</span> TU PRÓXIMA GRAN HISTORIA</p>
-      <h1 id="hero-title">Apaga las luces.<br><span>Enciende el cine.</span></h1>
-      <p class="hero-copy">Películas que se quedan contigo. Series para un capítulo más.<br class="desktop-break"> Encuentra lo que te apetece ver esta noche.</p>
+      <img id="hero-backdrop" class="hero-backdrop" alt="" hidden>
+      <div class="hero-content">
+      <h1 id="hero-title">Encuentra tu<br><em>próxima historia.</em></h1>
+      <p class="hero-copy">Busca una película o serie y retoma tus títulos desde el historial.</p>
       <form id="search-form" class="searchbar" role="search">
         <label class="sr-only" for="q">Buscar películas y series</label>
         <span class="search-icon" aria-hidden="true">⌕</span>
         <input type="search" id="q" placeholder="Busca una película o serie…" autocomplete="off" maxlength="200">
         <button class="button primary" type="submit">Buscar <span aria-hidden="true">↗</span></button>
       </form>
-      <p class="search-hint">Una buena noche empieza con una buena historia.</p>
+      </div>
+      <button id="featured-title" class="featured-title button secondary" type="button" hidden></button>
     </section>
     <section id="history" class="catalog history" aria-labelledby="history-title" hidden>
-      <div class="section-heading"><div><p class="eyebrow">TU ÚLTIMA SESIÓN</p><h2 id="history-title">Seguir viendo</h2></div><button id="clear-history" class="button secondary" type="button">Borrar historial</button></div>
+      <div class="section-heading"><div><h2 id="history-title">Seguir viendo</h2></div><button id="clear-history" class="button secondary" type="button">Borrar historial</button></div>
       <div id="history-results" class="grid"></div>
       <p class="player-note">Se recuerda el último episodio abierto desde esta página.</p>
     </section>
     <section id="catalog" class="catalog" aria-labelledby="catalog-title">
-      <div class="section-heading"><div><p class="eyebrow">ELIGE TU PRÓXIMO PLAN</p><h2 id="catalog-title">En el radar</h2></div><span id="result-count" class="muted"></span></div>
+      <div class="section-heading"><div><h2 id="catalog-title">En el radar</h2></div><span id="result-count" class="muted"></span></div>
       <p id="status" class="status" role="status" aria-live="polite" hidden></p>
       <div id="results" class="grid" aria-busy="false"></div>
       <div class="load-more"><button id="more" class="button secondary" type="button" hidden>Ver más <span aria-hidden="true">↓</span></button></div>
     </section>
   </main>
-  <footer class="site-footer container"><div class="brand footer-brand"><span data-app-name></span><span class="brand-dot" aria-hidden="true">.</span></div><p>Historias en pantalla. Una a la vez.</p><p class="attribution">Datos de <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. Este producto usa la API de TMDB y no está respaldado ni certificado por TMDB.</p></footer>
+  <footer class="site-footer container"><div class="brand footer-brand"><span data-app-name></span><span class="brand-dot" aria-hidden="true">.</span></div><p class="attribution">Datos de <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>. Este producto usa la API de TMDB y no está respaldado ni certificado por TMDB.</p></footer>
   <dialog id="detail-dialog" aria-labelledby="detail-title">
     <div class="dialog-top"><span class="eyebrow">SESIÓN DE CINE</span><button id="close" class="icon-button" type="button" aria-label="Cerrar detalle y reproductor">✕</button></div>
     <p id="detail-status" class="status" role="status" hidden></p>
@@ -69,8 +70,37 @@
         <label class="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
         <p class="player-note">Si lo desactivas se recarga el video y el proveedor podrá abrir ventanas o redirigir la página. Este modo no filtra anuncios dentro del video.</p>
         <p id="provider-note" class="player-note" role="status"></p>
-        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
-        <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
+        <p id="now-playing" class="now-playing"></p>
+        <div id="player-stage" class="player-stage">
+          <div class="video-area"><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
+            <div id="subtitle-layer" class="subtitle-layer" hidden></div>
+          </div>
+          <div class="subtitle-tools">
+            <button id="subtitle-fullscreen" class="button secondary" type="button" hidden>Pantalla completa con subtítulos</button>
+            <div id="subtitle-timing" class="subtitle-timing" hidden>
+              <label>Posición del video (segundos)<input id="subtitle-position" type="number" value="0" min="0" step="0.1"></label>
+              <label>Retraso (+) o adelanto (−)<input id="subtitle-delay" type="number" value="0" step="0.1"></label>
+              <button id="subtitle-clock" class="button secondary" type="button">Iniciar subtítulos</button>
+              <button id="subtitle-clear" class="button secondary" type="button">Quitar subtítulos</button>
+              <button id="subtitle-auto" class="button secondary" type="button" hidden>Sincronizar con el reproductor</button>
+            </div>
+          </div>
+        </div>
+        <details id="subtitle-panel" class="subtitle-panel" hidden>
+          <summary>Subtítulos externos</summary>
+          <label class="field">Cargar archivo SRT o WebVTT<input id="subtitle-file" type="file" accept=".srt,.vtt"></label>
+          <p id="subtitle-track" class="player-note"></p>
+          <form id="subtitle-search" class="subtitle-search">
+            <label class="field">Clave de API de OpenSubtitles<input id="subtitle-key" type="password" autocomplete="off" spellcheck="false"></label>
+            <label class="field">Token de cuenta (opcional)<input id="subtitle-token" type="password" autocomplete="off" spellcheck="false"></label>
+            <label class="field subtitle-language">Idioma<select id="subtitle-language"><option value="es">Español</option><option value="ea">Español latinoamericano</option><option value="en">Inglés</option><option value="pt-br">Portugués (Brasil)</option></select></label>
+            <button class="button primary" type="submit">Buscar en OpenSubtitles</button>
+          </form>
+          <p class="player-note"><a href="https://www.opensubtitles.com/es" target="_blank" rel="noopener noreferrer">Abrir OpenSubtitles</a></p>
+          <p id="subtitle-status" class="player-note" role="status"></p>
+          <a id="subtitle-download" target="_blank" rel="noopener noreferrer" hidden>Descargar archivo</a>
+          <ul id="subtitle-results" class="subtitle-results"></ul>
+        </details>
         <div class="field availability-field">
           <label for="availability-report">Tu comprobación para este título o episodio</label>
           <select id="availability-report">

@@ -15,6 +15,11 @@ export const providers = [
     tv: (id, season, episode) => `https://vidspark.to/tv/${id}/${season}/${episode}`,
   },
   {
+    id: 'vidrift', nombre: 'VidRift', category: 'alternative', requiresUnsandboxed: true,
+    movie: (id) => `https://embed.vidrift.net/embed/movie/${id}`,
+    tv: (id, season, episode) => `https://embed.vidrift.net/embed/tv/${id}/${season}/${episode}?hide=next,episodes`,
+  },
+  {
     id: '2embed-cc', nombre: '2Embed.cc', category: 'primary', requiresUnsandboxed: true,
     movie: (id) => `https://www.2embed.cc/embed/${id}`,
     tv: (id, season, episode) => `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`,
