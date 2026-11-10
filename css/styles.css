@@ -106,6 +106,8 @@ select { width: 100%; min-height: 46px; padding: 10px; background: var(--surface
 .episode-buttons { display: flex; gap: 8px; }
 .player-toolbar .field { max-width: 300px; }
 .history .card-meta { flex-wrap: wrap; }
+.safe-mode { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 18px; font-size: 13px; cursor: pointer; }
+.safe-mode input { accent-color: var(--accent); width: 20px; height: 20px; }
 @media (min-width: 600px) {
   .container { width: min(1240px, calc(100% - 64px)); }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px 22px; }

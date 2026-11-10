@@ -20,6 +20,8 @@ if (!Array.isArray(history)) history = [];
 history = history.filter((item) => item && Number.isSafeInteger(item.id) && item.id > 0 && ['movie', 'tv'].includes(item.media_type)).slice(0, 18);
 let providerId = readStorage('fotograma.provider', providers[0]?.id);
 if (!providers.some((provider) => provider.id === providerId)) providerId = providers[0]?.id;
+let safeModes = readStorage('fotograma.safeModes', {});
+if (!safeModes || typeof safeModes !== 'object' || Array.isArray(safeModes)) safeModes = {};
 
 document.title = `${APP_NAME} — Tu próxima gran historia`;
 document.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = APP_NAME; });
@@ -255,6 +257,9 @@ function play() {
   if (!selected || !provider || (selected.media_type === 'tv' && !episodes.length)) return;
   const season = Number($('season').value);
   const episode = Number($('episode').value);
+  $('safe-mode').checked = safeModes[providerId] !== false;
+  if ($('safe-mode').checked) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+  else player.removeAttribute('sandbox');
   $('now-playing').textContent = `${titleOf(selected)}${selected.media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${provider.nombre}`;
   player.src = selected.media_type === 'tv' ? provider.tv(selected.id, season, episode) : provider.movie(selected.id);
   $('playback').hidden = false;
@@ -272,6 +277,12 @@ $('next').addEventListener('click', () => moveEpisode(1));
 $('provider').addEventListener('change', () => {
   providerId = $('provider').value;
   writeStorage('fotograma.provider', providerId);
+  play();
+});
+$('safe-mode').addEventListener('change', () => {
+  safeModes[providerId] = $('safe-mode').checked;
+  writeStorage('fotograma.safeModes', safeModes);
+  player.removeAttribute('src');
   play();
 });
 $('rotate-provider').addEventListener('click', () => {

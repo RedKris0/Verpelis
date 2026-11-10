@@ -36,3 +36,18 @@ En la prueba de Chrome del 10 de noviembre de 2026 se ensayaron `origin` y `stri
 Los recursos externos declarados por esta página usan HTTPS. La página no añade CSP. El contenido mixto, la CSP y los certificados de los recursos internos del proveedor dependen de su servidor y deben revisarse en la consola del navegador cuando su iframe sea accesible. Si aparece un error de certificado, debe resolverse en el proveedor o en la configuración de confianza del equipo.
 
 GitHub Pages debe servirse por HTTPS, con **Enforce HTTPS** activado. Para desarrollo se admite `http://localhost` o `http://127.0.0.1` mediante `npx serve .` o `python -m http.server 8000`. Al abrir por `file://` se muestra ayuda y se evita importar módulos, que los navegadores bloquean en ese contexto. Un sitio HTTP público muestra un aviso para usar HTTPS.
+
+## Modo seguro y anuncios
+
+El iframe tiene por defecto `sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`. Quedan bloqueadas las ventanas emergentes y la navegación de la ventana principal. El interruptor **Modo seguro (bloquear popups)** elimina o restaura el sandbox y recarga el iframe. La preferencia se guarda por proveedor. Un proveedor añadido comienza siempre en modo seguro.
+
+Un script de esta página no puede inspeccionar ni filtrar anuncios dentro de un iframe de otro dominio. Para los anuncios del video se recomienda [uBlock Origin en Firefox o Brave](https://github.com/gorhill/uBlock) o [uBlock Origin Lite en Chrome](https://github.com/uBlockOrigin/uBOL-home). Su eficacia depende de las listas y del proveedor. Desactivar el modo seguro permite al proveedor abrir ventanas y redirigir la página.
+
+### Resultado de proveedores con sandbox
+
+| Proveedor | Modo seguro | Resultado |
+| --- | --- | --- |
+| Videasy | Activado por defecto | Reproducción pendiente de verificar. En este entorno Chrome rechaza el certificado del destino al que redirige Videasy, antes de cargar el reproductor. |
+| Ejemplos 1 y 2 | Sin activar | Plantillas comentadas, sin proveedor real ni prueba de reproducción. |
+
+El atributo sandbox se comprueba por separado de la reproducción externa. No se declara compatible un proveedor cuyo video no pudo verificarse. Usa las plantillas solo para reproductores HTTPS de otro origen que consideres fiables.

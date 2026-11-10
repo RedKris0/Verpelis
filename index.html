@@ -58,8 +58,10 @@
       <p id="episode-status" class="status" role="status" hidden></p>
       <section id="playback" aria-label="Reproductor" hidden>
         <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
+        <label class="safe-mode" for="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
+        <p class="player-note">Si lo desactivas se recarga el video y el proveedor podrá abrir ventanas o redirigir la página. Este modo no filtra anuncios dentro del video.</p>
         <p id="provider-note" class="player-note"></p>
-        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
         <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
       </section>
     </div>
