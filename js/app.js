@@ -1,5 +1,5 @@
 import { APP_NAME, TMDB_API_KEY } from './config.js';
-import { providers } from './providers.js';
+import { Availability, getSources, playbackKey, selectSource } from './providers.js';
 
 const $ = (id) => document.getElementById(id);
 const results = $('results');
@@ -20,19 +20,26 @@ let loadingSeason = false;
 let history = readStorage('fotograma.history', []);
 if (!Array.isArray(history)) history = [];
 history = history.filter((item) => item && Number.isSafeInteger(item.id) && item.id > 0 && ['movie', 'tv'].includes(item.media_type)).slice(0, 18);
-let providerId = readStorage('fotograma.provider', providers[0]?.id);
-if (!providers.some((provider) => provider.id === providerId)) providerId = providers[0]?.id;
+let preferredProviderId = readStorage('fotograma.provider', null);
+let availability = readStorage('fotograma.availability', {});
+if (!availability || typeof availability !== 'object' || Array.isArray(availability)) availability = {};
+const sourceErrors = new Set();
+let sources = [];
+let activeSource = null;
+let playbackTarget = null;
+const categories = { primary: 'Principales', alternative: 'Alternativos', classic: 'Cine clásico', experimental: 'Experimentales' };
+const availabilityLabels = {
+  AVAILABLE: 'Reproducción confirmada por ti',
+  UNAVAILABLE: 'Título ausente según tu comprobación',
+  UNKNOWN: 'Reproducción sin verificar',
+  ERROR: 'Error técnico',
+};
 let safeModes = readStorage('fotograma.safeModes', {});
 if (!safeModes || typeof safeModes !== 'object' || Array.isArray(safeModes)) safeModes = {};
 
 document.title = `${APP_NAME} — Tu próxima gran historia`;
 document.querySelector('[property="og:title"]').content = document.title;
 document.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = APP_NAME; });
-providers.forEach((provider) => $('provider').add(new Option(provider.nombre, provider.id)));
-$('provider').value = providerId || '';
-$('rotate-provider').disabled = providers.length < 2;
-$('provider-note').textContent = providers.length < 2 ? 'Solo hay un proveedor configurado. Puedes añadir los tuyos en js/providers.js.' : 'Prueba otro proveedor si este no reproduce.';
-
 function readStorage(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
@@ -176,6 +183,7 @@ async function openDetail(item, trigger) {
   detailController = new AbortController();
   const controller = detailController;
   selected = null;
+  clearSources();
   seasonController?.abort();
   seasons = [];
   episodes = [];
@@ -186,7 +194,6 @@ async function openDetail(item, trigger) {
   opener = trigger;
   $('detail-content').hidden = true;
   $('playback').hidden = true;
-  player.removeAttribute('src');
   message('detail-status', 'Preparando tu próxima historia…');
   dialog.showModal();
   document.body.classList.add('modal-open');
@@ -216,7 +223,7 @@ async function openDetail(item, trigger) {
         message('episode-status', 'TMDB todavía no tiene episodios para esta serie.');
         updateEpisodeButtons();
       }
-    } else $('play').disabled = !providers.length;
+    } else updateSources();
   } catch (error) {
     if (!controller.signal.aborted) message('detail-status', error.message);
   }
@@ -227,7 +234,7 @@ async function loadSeason(preferredEpisode, last = false) {
   const controller = new AbortController();
   seasonController = controller;
   const resume = !$('playback').hidden;
-  player.removeAttribute('src');
+  clearSources();
   episodes = [];
   loadingSeason = true;
   $('episode').replaceChildren();
@@ -244,7 +251,7 @@ async function loadSeason(preferredEpisode, last = false) {
     if (initial) $('episode').value = String(initial.episode_number);
     message('episode-status', initial ? '' : 'No hay episodios disponibles en esta temporada.');
     $('episode').disabled = !initial;
-    $('play').disabled = !initial || !providers.length;
+    if (initial) updateSources();
     if (resume && initial) play();
   } catch (error) {
     if (!controller.signal.aborted) message('episode-status', error.message);
@@ -264,8 +271,7 @@ function moveEpisode(direction) {
   const index = episodes.findIndex((episode) => episode.episode_number === Number($('episode').value));
   if (episodes[index + direction]) {
     $('episode').value = String(episodes[index + direction].episode_number);
-    updateEpisodeButtons();
-    if (!$('playback').hidden) play();
+    updateEpisodeSelection();
     return;
   }
   const seasonIndex = seasons.findIndex((season) => season.season_number === Number($('season').value));
@@ -273,29 +279,113 @@ function moveEpisode(direction) {
   if (season) { $('season').value = String(season.season_number); loadSeason(undefined, direction < 0); }
 }
 
-function play() {
-  const provider = providers.find((entry) => entry.id === providerId);
-  if (!selected || !provider || (selected.media_type === 'tv' && !episodes.length)) return;
-  const season = Number($('season').value);
-  const episode = Number($('episode').value);
-  let url;
-  try {
-    url = new URL(selected.media_type === 'tv' ? provider.tv(selected.id, season, episode) : provider.movie(selected.id));
-    if (url.protocol !== 'https:' || url.origin === location.origin) throw new Error();
-  } catch {
-    player.removeAttribute('src');
-    message('player-status', 'La URL del proveedor no es válida. Revisa js/providers.js y usa una dirección HTTPS de otro origen.');
-    return;
+function usesSafeMode(id) {
+  return safeModes[id] !== false;
+}
+
+function statusFor(id) {
+  const key = playbackKey(playbackTarget, id);
+  if (sourceErrors.has(key)) return Availability.ERROR;
+  const saved = availability[key];
+  return [Availability.AVAILABLE, Availability.UNAVAILABLE].includes(saved) ? saved : Availability.UNKNOWN;
+}
+
+function updateOptions() {
+  for (const option of $('provider').options) {
+    const source = sources.find(({ id }) => id === option.value);
+    const blocked = source.requiresUnsandboxed && usesSafeMode(source.id);
+    option.textContent = `${source.nombre} · ${blocked ? 'Modo seguro incompatible' : availabilityLabels[statusFor(source.id)]}`;
   }
+}
+
+function clearSources() {
+  player.removeAttribute('src');
+  activeSource = null;
+  playbackTarget = null;
+  sources = [];
+  $('provider').replaceChildren();
+  $('provider').disabled = true;
+  $('rotate-provider').disabled = true;
+  $('safe-mode').disabled = true;
+  $('availability-report').disabled = true;
+  $('now-playing').textContent = '';
+  message('provider-note');
   message('player-status');
-  $('safe-mode').checked = safeModes[providerId] !== false;
-  if ($('safe-mode').checked) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
-  else player.removeAttribute('sandbox');
-  $('now-playing').textContent = `${titleOf(selected)}${selected.media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${provider.nombre}`;
-  player.src = url.href;
+}
+
+function updateSources() {
+  playbackTarget = {
+    media_type: selected.media_type,
+    id: selected.id,
+    season: Number($('season').value),
+    episode: Number($('episode').value),
+  };
+  sources = getSources(playbackTarget, location.origin);
+  activeSource = selectSource(sources, preferredProviderId, statusFor, usesSafeMode);
+  const groups = [];
+  for (const [category, label] of Object.entries(categories)) {
+    const options = sources.filter((source) => (source.category || 'primary') === category);
+    if (!options.length) continue;
+    const group = document.createElement('optgroup');
+    group.label = label;
+    group.append(...options.map((source) => new Option(source.nombre, source.id)));
+    groups.push(group);
+  }
+  $('provider').replaceChildren(...groups);
+  $('provider').value = activeSource?.id || '';
+  $('provider').disabled = !activeSource;
+  $('safe-mode').disabled = !activeSource;
+  $('rotate-provider').disabled = sources.length < 2;
+  $('play').disabled = !activeSource;
+  message('player-status', activeSource ? '' : 'No hay proveedores compatibles para esta selección.');
+  updateOptions();
+}
+
+function updateEpisodeSelection() {
+  updateEpisodeButtons();
+  updateSources();
+  if (!$('playback').hidden) play();
+}
+
+function updateProviderStatus() {
+  const status = statusFor(activeSource.id);
+  message('provider-note', availabilityLabels[status]);
+  $('availability-report').value = status;
+}
+
+function play({ retry = false } = {}) {
+  if (!activeSource) return;
+  const { season, episode, media_type } = playbackTarget;
+  const safe = usesSafeMode(activeSource.id);
+  const blocked = safe && activeSource.requiresUnsandboxed;
+  $('safe-mode').checked = safe;
+  $('now-playing').textContent = `${titleOf(selected)}${media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${activeSource.nombre}`;
   $('playback').hidden = false;
-  saveHistory();
-  $('playback').scrollIntoView({ block: 'nearest' });
+  const reload = retry || player.getAttribute('src') !== activeSource.url || player.hasAttribute('sandbox') !== safe;
+  if (blocked || reload) player.removeAttribute('src');
+  if (reload) {
+    if (safe) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    else player.removeAttribute('sandbox');
+  }
+  $('availability-report').disabled = blocked;
+  message('player-status', blocked ? 'Este proveedor rechaza el modo seguro. Puedes elegir otra fuente.' : '');
+  if (!blocked && reload) {
+    sourceErrors.delete(playbackKey(playbackTarget, activeSource.id));
+    player.src = activeSource.url;
+    if (!retry) saveHistory();
+  }
+  updateOptions();
+  updateProviderStatus();
+}
+
+function chooseProvider(id) {
+  const source = sources.find((entry) => entry.id === id);
+  if (!source) return;
+  activeSource = source;
+  preferredProviderId = id;
+  $('provider').value = id;
+  writeStorage('fotograma.provider', id);
+  play();
 }
 
 $('search-form').addEventListener('submit', (event) => { event.preventDefault(); clearTimeout(debounceTimer); search(); });
@@ -306,26 +396,55 @@ $('q').addEventListener('input', () => {
   debounceTimer = setTimeout(() => search(), 350);
 });
 $('more').addEventListener('click', () => { clearTimeout(debounceTimer); search(true); });
-$('play').addEventListener('click', play);
+$('play').addEventListener('click', () => {
+  play({ retry: player.hasAttribute('src') });
+  $('playback').scrollIntoView({ block: 'nearest' });
+});
 $('season').addEventListener('change', () => loadSeason());
-$('episode').addEventListener('change', () => { updateEpisodeButtons(); if (!$('playback').hidden) play(); });
+$('episode').addEventListener('change', updateEpisodeSelection);
 $('previous').addEventListener('click', () => moveEpisode(-1));
 $('next').addEventListener('click', () => moveEpisode(1));
-$('provider').addEventListener('change', () => {
-  providerId = $('provider').value;
-  writeStorage('fotograma.provider', providerId);
-  play();
-});
+$('provider').addEventListener('change', () => chooseProvider($('provider').value));
 $('safe-mode').addEventListener('change', () => {
-  safeModes[providerId] = $('safe-mode').checked;
+  if (!activeSource) return;
+  safeModes[activeSource.id] = $('safe-mode').checked;
   writeStorage('fotograma.safeModes', safeModes);
-  player.removeAttribute('src');
   play();
 });
 $('rotate-provider').addEventListener('click', () => {
-  const index = providers.findIndex((provider) => provider.id === providerId);
-  $('provider').value = providers[(index + 1) % providers.length].id;
-  $('provider').dispatchEvent(new Event('change'));
+  const visibleIds = [...$('provider').options].map((option) => option.value);
+  const index = visibleIds.indexOf(activeSource?.id);
+  const alternatives = [...visibleIds.slice(index + 1), ...visibleIds.slice(0, index)];
+  const next = alternatives.find((id) => {
+    const source = sources.find((entry) => entry.id === id);
+    return (!source.requiresUnsandboxed || !usesSafeMode(id)) &&
+      [Availability.AVAILABLE, Availability.UNKNOWN].includes(statusFor(id));
+  });
+  chooseProvider(next || alternatives[0]);
+});
+$('availability-report').addEventListener('change', () => {
+  if (!activeSource) return;
+  const key = playbackKey(playbackTarget, activeSource.id);
+  const report = $('availability-report').value;
+  if (report === Availability.ERROR) {
+    sourceErrors.add(key);
+    updateOptions();
+    updateProviderStatus();
+    return;
+  }
+  sourceErrors.delete(key);
+  delete availability[key];
+  if ([Availability.AVAILABLE, Availability.UNAVAILABLE].includes(report)) availability[key] = report;
+  availability = Object.fromEntries(Object.entries(availability).slice(-500));
+  writeStorage('fotograma.availability', availability);
+  updateOptions();
+  updateProviderStatus();
+});
+player.addEventListener('error', () => {
+  if (!activeSource || !player.hasAttribute('src')) return;
+  sourceErrors.add(playbackKey(playbackTarget, activeSource.id));
+  updateOptions();
+  updateProviderStatus();
 });
 $('clear-history').addEventListener('click', () => { history = []; writeStorage('fotograma.history', history); renderHistory(); });
 $('close').addEventListener('click', () => dialog.close());
@@ -336,7 +455,7 @@ dialog.addEventListener('click', (event) => {
 dialog.addEventListener('close', () => {
   detailController?.abort();
   seasonController?.abort();
-  player.removeAttribute('src');
+  clearSources();
   $('playback').hidden = true;
   document.body.classList.remove('modal-open');
   const returnTarget = opener?.isConnected ? opener : [...$('history-results').children].find((node) => node.dataset.mediaKey === opener?.dataset.mediaKey) || $('q');

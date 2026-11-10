@@ -95,6 +95,7 @@ dialog::backdrop { background: #05060be8; backdrop-filter: blur(8px); }
 .overview { color: #c8cbd3; font-size: 14px; line-height: 1.8; margin: 18px 0 24px; }
 #playback { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 12px; }
 iframe { display: block; border: 0; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; }
+#player:not([src]) { display: none; }
 .now-playing { font-size: 14px; line-height: 1.7; }
 .player-note { font-size: 11px; color: var(--muted); line-height: 1.7; }
 .history { padding-bottom: 12px; }
@@ -104,7 +105,8 @@ select { width: 100%; min-height: 46px; padding: 10px; background: var(--surface
 .episode-controls, .player-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin-top: 24px; }
 .episode-controls .field { flex-basis: 150px; }
 .episode-buttons { display: flex; gap: 8px; }
-.player-toolbar .field { max-width: 300px; }
+.player-toolbar .field, .availability-field { max-width: min(100%, 340px); }
+.player-toolbar .field { flex-basis: 220px; }
 .history .card-meta { flex-wrap: wrap; }
 .safe-mode { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 18px; font-size: 13px; cursor: pointer; }
 .safe-mode input { accent-color: var(--accent); width: 20px; height: 20px; }

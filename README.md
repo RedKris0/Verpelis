@@ -1,79 +1,98 @@
 # Fotograma
 
-Buscador personal de películas y series con TMDB y un reproductor embebido.
+Buscador personal de películas y series con metadatos de TMDB y reproductores embebidos.
 
-## Uso local
+## Uso local y GitHub Pages
 
-Desde la carpeta del proyecto ejecuta `python -m http.server 8000` o `npx serve .` y abre la dirección HTTP que indique el servidor. Los módulos ES requieren un servidor, evita abrir `index.html` con doble clic.
+Ejecuta `python -m http.server 8000` desde la raíz y abre `http://localhost:8000/`. Para GitHub Pages selecciona **Deploy from a branch → main → / (root)** y habilita **Enforce HTTPS**. El sitio usa módulos ES con rutas relativas y se publica directamente, sin compilación ni dependencias de ejecución. Si se abre por `file://`, la página muestra instrucciones para servirla por HTTP.
 
-## Configuración
+`js/config.js` conserva el nombre y la configuración de TMDB. La clave se usa desde el navegador y es visible al inspeccionar los archivos o peticiones.
 
-- `js/config.js` contiene el nombre de la aplicación, definido una sola vez en `APP_NAME` y aplicado al título, header y footer.
-- `js/providers.js` contiene las URLs del reproductor.
-- `TMDB_API_KEY` en `js/config.js` conserva la clave existente y se usa internamente. La interfaz no muestra controles para verla ni editarla. Sigue siendo pública al inspeccionar los archivos o las peticiones del navegador.
-- `js/app.js` contiene la interacción y `css/styles.css` los estilos.
+## Reproducción y disponibilidad
 
-## GitHub Pages
+Pulsa **Reproducir** y elige un proveedor en el mismo modal. Para un título nuevo se intenta conservar tu proveedor preferido si es compatible con el tipo de contenido y con su ajuste de seguridad. Si tu comprobación anterior indica ausencia del título, se prioriza una fuente confirmada para ese título o episodio y luego una sin verificar. Sin preferencia ni comprobaciones previas, se prioriza la copia clásica si existe y después VidSpark. El botón para probar otra fuente da prioridad a las que pueden usarse con los ajustes actuales. Los cambios automáticos de fuente al abrir otro título o episodio conservan la preferencia guardada.
 
-En Settings → Pages selecciona Deploy from a branch, rama `main`, carpeta `/ (root)`. Guarda y activa Enforce HTTPS cuando esté disponible. Abre la URL de Pages. No hay frameworks, compilación ni servidor de aplicación.
+El selector usa una sola instancia del iframe. **Seguir viendo** guarda hasta 18 títulos con la última temporada y episodio abiertos. Puedes seguir usando anterior y siguiente, incluso entre temporadas. Los cambios realizados dentro del reproductor externo quedan bajo el control del proveedor.
 
-## Reproductores, series e historial
-
-Videasy es el único proveedor real incluido. `js/providers.js` exporta el registro de objetos `{id, nombre, movie(tmdbId), tv(tmdbId, season, episode)}`. En la sección **AÑADIR PROVEEDORES AQUÍ** hay dos ejemplos comentados con dominios `.invalid`. Reemplaza las plantillas por las URLs HTTPS de tus proveedores y descomenta los objetos. Usa un `id` único por proveedor.
-
-El selector muestra el proveedor actual y recuerda la elección. El botón para probar otro rota por los proveedores configurados. Con uno solo aparece desactivado y se explica cómo añadir más. Subtítulos y calidad los controla el reproductor embebido de cada proveedor.
-
-Las temporadas y episodios proceden de TMDB. Puedes elegirlos antes de reproducir y usar anterior/siguiente, incluso entre temporadas. Al volver a una serie se recupera el último episodio abierto. Los cambios hechos dentro del iframe, incluido su avance automático, no actualizan los selectores externos. La página no recibe eventos de progreso del proveedor.
-
-**Seguir viendo** conserva los últimos 18 títulos y el episodio seleccionado, sin guardar minutos de reproducción. Puedes borrar el historial. Se almacena en este navegador con `localStorage`, igual que el último proveedor. Si el navegador bloquea el almacenamiento, funciona durante la sesión y muestra un aviso al intentar guardar.
-
-## Chrome, HTTPS y diagnóstico
-
-El iframe original solo incluía `allow="encrypted-media"`. Ahora delega `autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write`, incluye `allowfullscreen` y abre tras pulsar Reproducir. Chrome puede exigir otro clic dentro del video para reproducir con sonido según sus políticas de autoplay. [Política oficial de Chrome](https://developer.chrome.com/blog/autoplay/).
-
-En la prueba de Chrome del 10 de noviembre de 2026 se ensayaron `origin` y `strict-origin-when-cross-origin` desde un servidor HTTP local. Con ambas, `player.videasy.net` respondió 301 hacia `player.videasy.to` y la navegación falló con `net::ERR_CERT_AUTHORITY_INVALID`. Ese fallo de confianza del certificado en este entorno impidió verificar el video. No permite afirmar que sea la causa de todos los fallos anteriores en otros equipos. Se conserva `strict-origin-when-cross-origin`, que transmite el origen en peticiones entre dominios y evita enviar el referente al bajar de HTTPS a HTTP. Se mantienen las URLs originales solicitadas. [Referencia de iframe y referrerpolicy](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe).
-
-Los recursos externos declarados por esta página usan HTTPS. La página no añade CSP. El contenido mixto, la CSP y los certificados de los recursos internos del proveedor dependen de su servidor y deben revisarse en la consola del navegador cuando su iframe sea accesible. Si aparece un error de certificado, debe resolverse en el proveedor o en la configuración de confianza del equipo.
-
-GitHub Pages debe servirse por HTTPS, con **Enforce HTTPS** activado. Para desarrollo se admite `http://localhost` o `http://127.0.0.1` mediante `npx serve .` o `python -m http.server 8000`. Al abrir por `file://` se muestra ayuda y se evita importar módulos, que los navegadores bloquean en ese contexto. Un sitio HTTP público muestra un aviso para usar HTTPS.
-
-## Modo seguro y anuncios
-
-El iframe tiene por defecto `sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`. Quedan bloqueadas las ventanas emergentes y la navegación de la ventana principal. El interruptor **Modo seguro (bloquear popups)** elimina o restaura el sandbox y recarga el iframe. La preferencia se guarda por proveedor. Un proveedor añadido comienza siempre en modo seguro.
-
-Un script de esta página no puede inspeccionar ni filtrar anuncios dentro de un iframe de otro dominio. Para los anuncios del video se recomienda [uBlock Origin en Firefox o Brave](https://github.com/gorhill/uBlock) o [uBlock Origin Lite en Chrome](https://github.com/uBlockOrigin/uBOL-home). Su eficacia depende de las listas y del proveedor. Desactivar el modo seguro permite al proveedor abrir ventanas y redirigir la página.
-
-### Resultado de proveedores con sandbox
-
-| Proveedor | Modo seguro | Resultado |
-| --- | --- | --- |
-| Videasy | Activado por defecto | Reproducción pendiente de verificar. En este entorno Chrome rechaza el certificado del destino al que redirige Videasy, antes de cargar el reproductor. |
-| Ejemplos 1 y 2 | Sin activar | Plantillas comentadas, sin proveedor real ni prueba de reproducción. |
-
-El atributo sandbox se comprueba por separado de la reproducción externa. No se declara compatible un proveedor cuyo video no pudo verificarse. Usa las plantillas solo para reproductores HTTPS de otro origen que consideres fiables.
-
-## Calidad y comprobaciones
-
-Ejecuta `node tests/check.mjs` para comprobar la configuración, el registro de proveedores, las URLs de Videasy, la ausencia del campo de clave y los atributos de seguridad. La aplicación se sirve directamente, sin instalar dependencias.
-
-Las consultas a TMDB tienen un límite de 12 segundos, errores en español para 401, 429, 404, red y respuestas inesperadas, cancelación de solicitudes anteriores y búsqueda con debounce de 350 ms. Los textos externos se insertan con `textContent`. Los pósteres usan carga diferida, texto alternativo y sustitución si falta o falla la imagen.
-
-El modal nativo bloquea el fondo y mantiene el foco, permite cerrar con Esc, botón y clic exterior, restaura el foco y descarga el iframe al cerrar. Se respeta `prefers-reduced-motion`.
-
-Comprobaciones realizadas el 10 de noviembre de 2026 desde un servidor local.
-
-| Comprobación | Resultado |
+| Estado | Evidencia |
 | --- | --- |
-| Chrome 157, TMDB real | Catálogo y pósteres cargados. Sin errores de JavaScript ni de consola en la página principal. |
-| Chrome y Firefox, respuestas TMDB y proveedores simulados | Búsqueda, paginación, debounce, cancelación, texto XSS, modales, foco, proveedor recordado, modo seguro por proveedor, temporadas, navegación entre temporadas e historial correctos. |
-| Errores simulados | Clave vacía, 401, 429, error del servidor, red, JSON inválido y timeout con mensajes controlados. |
-| Persistencia | Historial malformado y almacenamiento bloqueado manejados sin romper la página. |
-| Seguridad del iframe, documento de prueba de otro origen | Popups y navegación principal bloqueados con sandbox. |
-| Accesibilidad | Lighthouse **100/100** en la página principal de Chrome. Axe sin infracciones en inicio y modal de detalle con los datos de prueba, en Chrome y Firefox. |
-| HTML | Validación recomendada de html-validate sin errores. |
-| Diseño | Revisado en escritorio de 1440 px y móvil de 375 px, sin desbordamiento horizontal en página ni modal. |
-| Apertura directa | Ayuda visible con `file://`, sin intentar importar la aplicación. |
-| Brave | Prueba directa pendiente. Comparte motor Chromium, pero sus bloqueos propios pueden cambiar el comportamiento del proveedor. |
-| Videasy real con sandbox | Pendiente por el error de certificado descrito arriba. |
+| `AVAILABLE` | Marcaste que viste el video correcto en esa fuente. |
+| `UNAVAILABLE` | Marcaste que el proveedor confirmó que carece de ese video. |
+| `UNKNOWN` | La reproducción sigue sin verificar. También se usa tras cargar el iframe o recibir HTTP 200. |
+| `ERROR` | Informaste un problema técnico o el navegador entregó un evento de error del iframe. Los navegadores suelen ocultar errores de iframes de otros orígenes. |
 
-Las pruebas con proveedores simulados verifican la integración y el aislamiento. La disponibilidad del video, los subtítulos, la calidad y los anuncios dependen del proveedor real. El nombre se centraliza en `APP_NAME`, incluidos el título y Open Graph al iniciar JavaScript. Los rastreadores que no ejecutan JavaScript reciben los metadatos estáticos genéricos.
+Las comprobaciones de disponibilidad guardadas se limitan a las últimas 500 y se identifican por proveedor, tipo, TMDB ID y, para series, temporada y episodio. Los errores técnicos solo se guardan durante la sesión y se limpian al reintentar. Para volver a cargar la fuente actual, pulsa de nuevo **Reproducir**. Fotograma no realiza comprobaciones masivas ni registra el progreso de video.
+
+## Proveedores integrados
+
+Estado observado el 10 de noviembre de 2026 en Chrome 157 desde un servidor local. La disponibilidad varía por título, país y configuración del navegador.
+
+| Fuente | Identificador y alcance | Evidencia y modo seguro |
+| --- | --- | --- |
+| [VidSpark, antes MoviesAPI.to](https://vidspark.to/#documentation) | TMDB o IMDb, película y episodio. Se usa TMDB. | Reproducción iniciada con sandbox en películas y un episodio. Consulta la matriz. |
+| [Wikimedia Commons](https://www.mediawiki.org/wiki/Extension:TimedMediaHandler) | Archivos concretos relacionados con IDs TMDB. Solo películas del catálogo revisado. | Reproducción iniciada con sandbox en las dos películas del catálogo. |
+| [Internet Archive](https://archivesupport.zendesk.com/hc/en-us/articles/360018377531-Movies-and-Videos-Tips-Troubleshooting) | Identificador de elemento de Archive asociado a un ID TMDB. Solo películas del catálogo revisado. | Iframes cargados y metadatos de los archivos revisados. Consulta el resultado por título abajo. |
+| [2Embed.cc](https://www.2embed.cc/) | TMDB o IMDb, película y episodio. Se usa TMDB. | El endpoint mostró la ficha del título y su código presenta un aviso de incompatibilidad con sandbox. Reproducción pendiente de validar. |
+| [VidSrc.to](https://vidsrc.to/) | TMDB o IMDb, película y episodio. Se usa TMDB. | Entregó un iframe anidado que rechaza el sandbox. Reproducción pendiente de validar. |
+| [AutoEmbed.me, antes AutoEmbed.co](https://autoembed.me/) | TMDB o IMDb, película y episodio. Se usa TMDB. | Su reproductor anidado rechazó el sandbox. Reproducción pendiente de validar. |
+
+El modo seguro viene activado para cada fuente. El iframe mantiene `sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`, `allowfullscreen`, la lista existente de permisos de reproducción y `strict-origin-when-cross-origin`. Con el modo seguro activado, los proveedores que lo rechazan muestran un aviso en vez de abrir el iframe. Puedes cambiar ese ajuste individual con el interruptor existente. Al desactivarlo, ese proveedor puede abrir ventanas o redirigir la página. La preferencia se guarda por proveedor. Autoplay, subtítulos y calidad dependen del navegador y del reproductor. Cerrar el modal descarga el iframe.
+
+## Proveedores investigados fuera del selector
+
+Se revisó el registro, el código de diagnóstico y la licencia MIT de [tmdb-embed-providers, revisión 3b03784](https://github.com/anikolabs/tmdb-embed-providers/tree/3b03784). El diagnóstico del paquete distingue respuestas y marcas de reproductor. Fotograma implementa sus propias plantillas a partir de la documentación de los servicios.
+
+| Servicio | Evidencia y motivo |
+| --- | --- |
+| [VidFast](https://vidfast.domains/) | Dominio oficial actual `vidfast.vc`. [Documenta](https://vidfast.vc/) películas y episodios por TMDB/IMDb. La navegación de prueba devolvió 403 y Chrome bloqueó el iframe. La referencia también señala rechazo del sandbox. |
+| [VidLink](https://vidlink.pro/) | Documenta películas y episodios por TMDB. Chrome rechazó el certificado del endpoint probado. La referencia señala incompatibilidad con sandbox. |
+| [VidSrc.pm](https://vidsrc.pm/) | La referencia ofrece rutas de películas y episodios por TMDB. Un intento HTTP devolvió 403 y Chrome recibió una página sin video comprobado. |
+| [2Embed.skin](https://www.2embed.skin/) | La referencia ofrece rutas TMDB de películas y episodios. La película probada devolvió el mismo reproductor de 2Embed.cc. Se omitió el duplicado. |
+| [VidSrc.cc](https://vidsrc.cc/) | La referencia usa `/v2/embed/` con TMDB para películas y episodios. HTTP 403 y navegación sin video verificado. |
+| [NontonGo](https://nontongo.win/) | Documenta películas y episodios por TMDB/IMDb en `www.nontongo.win`. Chrome bloqueó el iframe después de una respuesta 403. Cobertura asiática pendiente de verificar. |
+| [SmashyStream](https://player.smashystream.com/) | La referencia usa `playere.php` con TMDB y parámetros de episodio. El endpoint de prueba devolvió 403. |
+| [Frembed](https://frembed.icu/) | La referencia usa rutas separadas con TMDB para películas y episodios. La comprobación del endpoint falló en la validación TLS. |
+| [MultiEmbed / SuperEmbed](https://multiembed.mov/) | Dominio de referencia devolvió 403. Quedan por confirmar el endpoint vigente, los IDs y el iframe. |
+| [VidSrc.xyz](https://vidsrc.xyz/) | Falló la resolución DNS en la prueba local. Quedan por confirmar el endpoint vigente, los IDs y el iframe. |
+| [Cno](https://cno.to/) | Catálogo de películas y series en su sitio. No se encontró documentación pública para API, búsqueda de terceros, IDs TMDB/IMDb o iframe de reproducción. |
+| [Nepu](https://nepu.io/) | El sitio devolvió 403 en la consulta. No se verificaron una API pública, búsqueda documentada, IDs TMDB/IMDb ni un iframe. |
+| [Tubi](https://tubitv.com/) | Catálogo con disponibilidad regional. La [lista oficial de mercados fuera de EE. UU.](https://tubitv.com/help-center/About-Tubi/articles/4409969055259) no incluye Chile. No se encontró una API pública o iframe de reproducción para Fotograma. |
+
+## Cine clásico
+
+La correspondencia se mantiene en `js/classics.js`. Para añadir una película, busca candidatos mediante [Advanced Search](https://archive.org/advancedsearch.php) y comprueba el elemento en [la API de metadatos de Archive](https://archive.org/developers/metadata.html), usando `/metadata/{identifier}`. Cruza la edición con TMDB por año, título original, créditos y, si está disponible, IMDb. Comprueba que el archivo sea el largometraje completo, que su duración sea razonable, que el acceso sea público y que su licencia o fundamento de dominio público corresponda a esa copia. Añade el TMDB ID y el identificador exacto. El iframe oficial usa `https://archive.org/embed/{identifier}`. Las etiquetas de licencia de Archive corresponden a elementos individuales.
+
+[WikiFlix](https://wikiflix.toolforge.org/) sirve como referencia para localizar fuentes. Su [guía de Wikidata](https://www.wikidata.org/wiki/Help:WikiFlix/en) distingue tráileres y obras completas. Su [código](https://github.com/magnusmanske/wikistream/blob/main/public_html/vue_components/pages/play-page.js) reproduce desde las fuentes originales. Fotograma integra copias de Commons revisadas individualmente mediante el reproductor del archivo original, sin cargar el sitio de WikiFlix.
+
+| TMDB | Película | Copia y derechos documentados |
+| --- | --- | --- |
+| 15856 | *House on Haunted Hill* (1959) | [Internet Archive, 74 min](https://archive.org/details/HouseOnHauntedHill1959), metadatos CC BY 3.0. [Wikimedia Commons documenta el dominio público en EE. UU. de esa versión](https://commons.wikimedia.org/wiki/File:House_on_Haunted_Hill_(1959)_-_Title.jpg). |
+| 20529 | *Sita Sings the Blues* (2008) | [Internet Archive, 82 min](https://archive.org/details/Sita_Sings_the_Blues). [Nina Paley distribuye la película y documenta CC0 y las excepciones de algunas canciones](https://www.sitasingstheblues.com/). |
+| 34078 | *The Screaming Skull* (1958) | [Wikimedia Commons, 68 min](https://commons.wikimedia.org/wiki/File:The_Screaming_Skull.webm), ficha con marca de dominio público. |
+| 10331 | *Night of the Living Dead* (1968) | [Wikimedia Commons, 95 min](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm), con fundamento de dominio público en EE. UU. y matices territoriales en la ficha. |
+
+El catálogo curado solo cubre los títulos enumerados. Que una película aparezca en TMDB o en la búsqueda de Archive no implica que tenga reproducción.
+
+## Mantenimiento y pruebas
+
+`js/providers.js` exporta `providers` con `id`, `nombre`, `category`, `movie(tmdbId)` y `tv(tmdbId, season, episode)`. Omite la función de un tipo no compatible o devuelve `null` para títulos fuera del catálogo. Usa un ID estable y único, un destino HTTPS de otro origen y `enabled: false` para retirar temporalmente una fuente. Si el proveedor documenta o muestra que su propio reproductor exige un iframe sin sandbox, registra `requiresUnsandboxed: true`. Verifica película y episodio desde un origen local antes de habilitar la fuente. Si solo admite IMDb, usa los [identificadores externos de TMDB](https://developer.themoviedb.org/reference/movie-external-ids) y conserva una ruta de error para títulos sin equivalencia.
+
+Ejecuta `node tests/check.mjs`. Las pruebas cubren plantillas y coordenadas, películas sin fuente clásica, remakes, deshabilitados, duplicados, URLs no válidas, selección inicial, estados, controles de seguridad y arranque estático. Chrome a 375 px, con respuestas simuladas, verificó cambios de fuente, temporada y episodio, recuperación del historial y de los ajustes al recargar, y cierre con Esc. Las consultas directas a la API real de TMDB corroboraron los IDs del catálogo clásico. Desde Chrome con TMDB real se abrió *Expediente X*, se seleccionó T2E3 («Sangre») y se verificó que el iframe apuntaba al episodio correspondiente.
+
+### Matriz de reproducción
+
+Pruebas en Chrome 157, con sandbox activo y contenido remoto real. La matriz usó datos de fichas controlados para seleccionar los IDs exactos. Se registró el avance del video y la duración anunciada por el reproductor. Las pruebas cubrieron el inicio del video, con el audio silenciado.
+
+| Título | TMDB y fuente | Resultado |
+| --- | --- | --- |
+| *The Screaming Skull* (1958) | 34078 · Wikimedia Commons | Video en reproducción, duración de 68 min. La variante de 1973 (485620) queda fuera del catálogo. |
+| *House on Haunted Hill* (1959) | 15856 · Internet Archive | Iframe y archivo identificados. El video no avanzó. El remake de 1999 (11377) no recibe esta fuente. |
+| *Night of the Living Dead* (1968) | 10331 · Wikimedia Commons | Video en reproducción, duración de 95 min. Se seleccionó el archivo completo, distinto de los clips y de la versión de 1990 (19185). |
+| *The Thing* (1982) | 1091 · VidSpark | Video en reproducción, duración de 109 min. |
+| *Jurassic Park* (1993) | 329 · VidSpark | Tiempo de espera agotado antes de detectar video. Disponibilidad sin verificar. |
+| *The X-Files* (1993), T2E3 «Blood» | 4087 · VidSpark | El endpoint T2E3 reprodujo video de 45 min. El salto T2E3 → T3E1 y el regreso se comprobaron con datos simulados. |
+| *Memento* (2000) | 77 · VidSpark | Video en reproducción, duración de 113 min. |
+| *Sita Sings the Blues* (2008) | 20529 · Internet Archive | Se identificó el MP4 de la película completa en el iframe. El video no avanzó. |
+| *Interstellar* (2014) | 157336 · VidSpark | Tiempo de espera agotado antes de detectar video. Disponibilidad sin verificar. |
+
+Para repetir la matriz, busca cada título y comprueba año, edición, temporada y episodio antes de cambiar de fuente. Si empieza el video, coteja su contenido y duración con la ficha antes de registrar el resultado. Un tiempo de espera agotado indica una prueba inconclusa. Queda pendiente comprobar fuentes adicionales para los años setenta y para más temporadas y series de 2010 a 2015.

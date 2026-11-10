@@ -68,9 +68,18 @@
         <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
         <label class="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
         <p class="player-note">Si lo desactivas se recarga el video y el proveedor podrá abrir ventanas o redirigir la página. Este modo no filtra anuncios dentro del video.</p>
-        <p id="provider-note" class="player-note"></p>
+        <p id="provider-note" class="player-note" role="status"></p>
         <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
         <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
+        <div class="field availability-field">
+          <label for="availability-report">Tu comprobación para este título o episodio</label>
+          <select id="availability-report">
+            <option value="UNKNOWN">Sin verificar</option>
+            <option value="AVAILABLE">Vi el video correcto</option>
+            <option value="UNAVAILABLE">El proveedor confirmó que no tiene el video</option>
+            <option value="ERROR">Hubo un error técnico</option>
+          </select>
+        </div>
       </section>
     </div>
   </dialog>
