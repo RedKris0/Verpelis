@@ -1,9 +1,16 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="description" content="Encuentra películas y series, explora sus historias y retoma tu última sesión de cine desde un lugar sencillo y personal.">
+  <meta name="theme-color" content="#101114">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tu próxima gran historia">
+  <meta property="og:description" content="Películas que se quedan contigo. Series para un capítulo más. Encuentra tu próxima historia.">
+  <meta property="og:locale" content="es_ES">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <title>Cine en casa</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +20,7 @@
 <body>
   <a class="skip-link" href="#catalog">Saltar al catálogo</a>
   <header class="site-header container">
-    <a class="brand" href="./" aria-label="Ir al inicio"><span class="brand-mark" aria-hidden="true">f</span><span data-app-name></span><span class="brand-dot" aria-hidden="true">.</span></a>
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">f</span><span data-app-name></span><span class="brand-dot" aria-hidden="true">.</span></a>
     <a class="header-link" href="#catalog">Explorar <span aria-hidden="true">↗</span></a>
   </header>
   <main class="container">
@@ -56,9 +63,10 @@
         <div class="episode-buttons"><button id="previous" class="button secondary" type="button">← Anterior</button><button id="next" class="button secondary" type="button">Siguiente →</button></div>
       </div>
       <p id="episode-status" class="status" role="status" hidden></p>
+      <p id="player-status" class="status" role="status" hidden></p>
       <section id="playback" aria-label="Reproductor" hidden>
         <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
-        <label class="safe-mode" for="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
+        <label class="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
         <p class="player-note">Si lo desactivas se recarga el video y el proveedor podrá abrir ventanas o redirigir la página. Este modo no filtra anuncios dentro del video.</p>
         <p id="provider-note" class="player-note"></p>
         <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
@@ -66,6 +74,7 @@
       </section>
     </div>
   </dialog>
+  <noscript><p class="status container">Activa JavaScript para buscar títulos y usar los reproductores.</p></noscript>
   <script>
     const protocolWarning = document.getElementById('protocol-warning');
     if (location.protocol === 'file:') {

@@ -7,6 +7,8 @@ const dialog = $('detail-dialog');
 const player = $('player');
 let currentPage = 0;
 let totalPages = 0;
+let currentQuery = '';
+let debounceTimer;
 let selected = null;
 let opener = null;
 let searchController;
@@ -24,6 +26,7 @@ let safeModes = readStorage('fotograma.safeModes', {});
 if (!safeModes || typeof safeModes !== 'object' || Array.isArray(safeModes)) safeModes = {};
 
 document.title = `${APP_NAME} — Tu próxima gran historia`;
+document.querySelector('[property="og:title"]').content = document.title;
 document.querySelectorAll('[data-app-name]').forEach((node) => { node.textContent = APP_NAME; });
 providers.forEach((provider) => $('provider').add(new Option(provider.nombre, provider.id)));
 $('provider').value = providerId || '';
@@ -74,19 +77,33 @@ async function tmdb(path, params = {}, signal) {
   if (!key) throw new Error('La API key de TMDB no es válida, revisa js/config.js');
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   url.search = new URLSearchParams({ api_key: key, language: 'es-ES', ...params });
-  const response = await fetch(url, { signal });
-  if (response.status === 401) throw new Error('La API key de TMDB no es válida, revisa js/config.js');
-  if (!response.ok) throw new Error('No pudimos consultar TMDB. Revisa tu conexión y la API key.');
-  return response.json();
+  const timeout = AbortSignal.timeout(12000);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  try {
+    const response = await fetch(url, { signal: requestSignal });
+    if (response.status === 401) throw new Error('La API key de TMDB no es válida, revisa js/config.js');
+    if (response.status === 429) throw new Error('TMDB ha recibido demasiadas consultas. Espera unos segundos y vuelve a intentarlo.');
+    if (response.status === 404) throw new Error('Este título o temporada ya no está disponible en TMDB.');
+    if (!response.ok) throw new Error('TMDB no está disponible en este momento. Vuelve a intentarlo en unos minutos.');
+    const data = await response.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new SyntaxError();
+    return data;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (timeout.aborted) throw new Error('TMDB tardó demasiado en responder. Revisa tu conexión y vuelve a intentarlo.');
+    if (error instanceof TypeError) throw new Error('No pudimos conectar con TMDB. Revisa tu conexión a internet y vuelve a intentarlo.');
+    if (error instanceof SyntaxError) throw new Error('TMDB devolvió una respuesta inesperada. Vuelve a intentarlo.');
+    throw error;
+  }
 }
 
-function titleOf(item) { return item.title || item.name || 'Título sin nombre'; }
-function yearOf(item) { return (item.release_date || item.first_air_date || '').slice(0, 4) || 'Sin fecha'; }
-function ratingOf(item) { return item.vote_average ? `★ ${item.vote_average.toFixed(1)}` : 'Sin valoración'; }
+function titleOf(item) { return [item.title, item.name].find((value) => typeof value === 'string' && value.trim()) || 'Título sin nombre'; }
+function yearOf(item) { return [item.release_date, item.first_air_date].find((value) => typeof value === 'string' && /^\d{4}-/.test(value))?.slice(0, 4) || 'Sin fecha'; }
+function ratingOf(item) { return Number.isFinite(item.vote_average) && item.vote_average > 0 ? `★ ${item.vote_average.toFixed(1)}` : 'Sin valoración'; }
 
 function poster(item) {
   const fallback = element('div', 'poster-fallback', 'Sin póster');
-  if (!item.poster_path) return fallback;
+  if (typeof item.poster_path !== 'string' || !/^\/[\w.-]+$/.test(item.poster_path)) return fallback;
   const img = element('img', 'poster');
   img.src = `https://image.tmdb.org/t/p/w342${item.poster_path}`;
   img.alt = `Póster de ${titleOf(item)}`;
@@ -100,7 +117,7 @@ function poster(item) {
 function card(item) {
   const button = element('button', 'card');
   button.type = 'button';
-  button.setAttribute('aria-label', `Ver detalle de ${titleOf(item)}`);
+  button.dataset.mediaKey = `${item.media_type}-${item.id}`;
   const image = element('div', 'poster-wrap');
   image.append(poster(item), element('span', 'badge', item.media_type === 'tv' ? 'Serie' : 'Película'));
   const meta = element('span', 'card-meta');
@@ -116,6 +133,8 @@ async function search(append = false) {
   const controller = new AbortController();
   searchController = controller;
   const query = $('q').value.trim();
+  append = append && query === currentQuery;
+  currentQuery = query;
   const page = append ? currentPage + 1 : 1;
   $('catalog-title').textContent = query ? `Resultados para «${query}»` : 'En el radar';
   $('more').hidden = true;
@@ -134,7 +153,8 @@ async function search(append = false) {
     const data = await tmdb(query ? '/search/multi' : '/trending/all/week', { page, ...(query ? { query } : {}) }, controller.signal);
     if (controller.signal.aborted) return;
     if (!append) results.replaceChildren();
-    const items = (data.results || []).filter((item) => ['movie', 'tv'].includes(item.media_type));
+    if (!Array.isArray(data.results)) throw new Error('TMDB devolvió una lista inesperada. Vuelve a intentarlo.');
+    const items = data.results.filter((item) => item && Number.isSafeInteger(item.id) && item.id > 0 && ['movie', 'tv'].includes(item.media_type));
     results.append(...items.map(card));
     currentPage = page;
     totalPages = Math.min(data.total_pages || 0, 500);
@@ -161,6 +181,7 @@ async function openDetail(item, trigger) {
   episodes = [];
   $('episode-controls').hidden = true;
   message('episode-status');
+  message('player-status');
   $('play').disabled = true;
   opener = trigger;
   $('detail-content').hidden = true;
@@ -173,17 +194,17 @@ async function openDetail(item, trigger) {
   try {
     const detail = await tmdb(`/${item.media_type}/${item.id}`, {}, controller.signal);
     if (controller.signal.aborted) return;
-    selected = { ...detail, media_type: item.media_type };
+    selected = { ...detail, id: item.id, media_type: item.media_type };
     $('detail-title').textContent = titleOf(selected);
     $('detail-type').textContent = item.media_type === 'tv' ? 'SERIE' : 'PELÍCULA';
     $('detail-meta').textContent = `${yearOf(selected)} · ${ratingOf(selected)}`;
-    $('detail-genres').textContent = (detail.genres || []).map((genre) => genre.name).join(' · ');
-    $('detail-overview').textContent = detail.overview || 'Esta historia todavía no tiene sinopsis disponible.';
+    $('detail-genres').textContent = (Array.isArray(detail.genres) ? detail.genres : []).filter((genre) => genre && typeof genre.name === 'string').map((genre) => genre.name).join(' · ');
+    $('detail-overview').textContent = typeof detail.overview === 'string' && detail.overview.trim() ? detail.overview : 'Esta historia todavía no tiene sinopsis disponible.';
     $('detail-poster').replaceChildren(poster(selected));
     $('detail-content').hidden = false;
     message('detail-status');
     if (selected.media_type === 'tv') {
-      seasons = (detail.seasons || []).filter((season) => season.episode_count > 0).sort((a, b) => a.season_number - b.season_number);
+      seasons = (Array.isArray(detail.seasons) ? detail.seasons : []).filter((season) => season && Number.isSafeInteger(season.season_number) && season.season_number >= 0 && season.episode_count > 0).sort((a, b) => a.season_number - b.season_number);
       $('episode-controls').hidden = false;
       $('season').replaceChildren(...seasons.map((season) => new Option(season.name || `Temporada ${season.season_number}`, season.season_number)));
       const saved = history.find((entry) => entry.id === selected.id && entry.media_type === 'tv');
@@ -217,7 +238,7 @@ async function loadSeason(preferredEpisode, last = false) {
   try {
     const data = await tmdb(`/tv/${selected.id}/season/${$('season').value}`, {}, controller.signal);
     if (controller.signal.aborted) return;
-    episodes = (data.episodes || []).filter((episode) => Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0);
+    episodes = (Array.isArray(data.episodes) ? data.episodes : []).filter((episode) => episode && Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0);
     $('episode').replaceChildren(...episodes.map((episode) => new Option(`${episode.episode_number}. ${episode.name || 'Sin título'}`, episode.episode_number)));
     const initial = episodes.find((episode) => episode.episode_number === preferredEpisode) || (last ? episodes.at(-1) : episodes[0]);
     if (initial) $('episode').value = String(initial.episode_number);
@@ -257,18 +278,34 @@ function play() {
   if (!selected || !provider || (selected.media_type === 'tv' && !episodes.length)) return;
   const season = Number($('season').value);
   const episode = Number($('episode').value);
+  let url;
+  try {
+    url = new URL(selected.media_type === 'tv' ? provider.tv(selected.id, season, episode) : provider.movie(selected.id));
+    if (url.protocol !== 'https:' || url.origin === location.origin) throw new Error();
+  } catch {
+    player.removeAttribute('src');
+    message('player-status', 'La URL del proveedor no es válida. Revisa js/providers.js y usa una dirección HTTPS de otro origen.');
+    return;
+  }
+  message('player-status');
   $('safe-mode').checked = safeModes[providerId] !== false;
   if ($('safe-mode').checked) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
   else player.removeAttribute('sandbox');
   $('now-playing').textContent = `${titleOf(selected)}${selected.media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${provider.nombre}`;
-  player.src = selected.media_type === 'tv' ? provider.tv(selected.id, season, episode) : provider.movie(selected.id);
+  player.src = url.href;
   $('playback').hidden = false;
   saveHistory();
   $('playback').scrollIntoView({ block: 'nearest' });
 }
 
-$('search-form').addEventListener('submit', (event) => { event.preventDefault(); search(); });
-$('more').addEventListener('click', () => search(true));
+$('search-form').addEventListener('submit', (event) => { event.preventDefault(); clearTimeout(debounceTimer); search(); });
+$('q').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  searchController?.abort();
+  $('more').hidden = true;
+  debounceTimer = setTimeout(() => search(), 350);
+});
+$('more').addEventListener('click', () => { clearTimeout(debounceTimer); search(true); });
 $('play').addEventListener('click', play);
 $('season').addEventListener('change', () => loadSeason());
 $('episode').addEventListener('change', () => { updateEpisodeButtons(); if (!$('playback').hidden) play(); });
@@ -302,7 +339,8 @@ dialog.addEventListener('close', () => {
   player.removeAttribute('src');
   $('playback').hidden = true;
   document.body.classList.remove('modal-open');
-  opener?.focus();
+  const returnTarget = opener?.isConnected ? opener : [...$('history-results').children].find((node) => node.dataset.mediaKey === opener?.dataset.mediaKey) || $('q');
+  returnTarget.focus();
 });
 dialog.addEventListener('keydown', (event) => {
   if (event.key !== 'Tab') return;

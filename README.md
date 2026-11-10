@@ -51,3 +51,29 @@ Un script de esta página no puede inspeccionar ni filtrar anuncios dentro de un
 | Ejemplos 1 y 2 | Sin activar | Plantillas comentadas, sin proveedor real ni prueba de reproducción. |
 
 El atributo sandbox se comprueba por separado de la reproducción externa. No se declara compatible un proveedor cuyo video no pudo verificarse. Usa las plantillas solo para reproductores HTTPS de otro origen que consideres fiables.
+
+## Calidad y comprobaciones
+
+Ejecuta `node tests/check.mjs` para comprobar la configuración, el registro de proveedores, las URLs de Videasy, la ausencia del campo de clave y los atributos de seguridad. La aplicación se sirve directamente, sin instalar dependencias.
+
+Las consultas a TMDB tienen un límite de 12 segundos, errores en español para 401, 429, 404, red y respuestas inesperadas, cancelación de solicitudes anteriores y búsqueda con debounce de 350 ms. Los textos externos se insertan con `textContent`. Los pósteres usan carga diferida, texto alternativo y sustitución si falta o falla la imagen.
+
+El modal nativo bloquea el fondo y mantiene el foco, permite cerrar con Esc, botón y clic exterior, restaura el foco y descarga el iframe al cerrar. Se respeta `prefers-reduced-motion`.
+
+Comprobaciones realizadas el 10 de noviembre de 2026 desde un servidor local.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Chrome 157, TMDB real | Catálogo y pósteres cargados. Sin errores de JavaScript ni de consola en la página principal. |
+| Chrome y Firefox, respuestas TMDB y proveedores simulados | Búsqueda, paginación, debounce, cancelación, texto XSS, modales, foco, proveedor recordado, modo seguro por proveedor, temporadas, navegación entre temporadas e historial correctos. |
+| Errores simulados | Clave vacía, 401, 429, error del servidor, red, JSON inválido y timeout con mensajes controlados. |
+| Persistencia | Historial malformado y almacenamiento bloqueado manejados sin romper la página. |
+| Seguridad del iframe, documento de prueba de otro origen | Popups y navegación principal bloqueados con sandbox. |
+| Accesibilidad | Lighthouse **100/100** en la página principal de Chrome. Axe sin infracciones en inicio y modal de detalle con los datos de prueba, en Chrome y Firefox. |
+| HTML | Validación recomendada de html-validate sin errores. |
+| Diseño | Revisado en escritorio de 1440 px y móvil de 375 px, sin desbordamiento horizontal en página ni modal. |
+| Apertura directa | Ayuda visible con `file://`, sin intentar importar la aplicación. |
+| Brave | Prueba directa pendiente. Comparte motor Chromium, pero sus bloqueos propios pueden cambiar el comportamiento del proveedor. |
+| Videasy real con sandbox | Pendiente por el error de certificado descrito arriba. |
+
+Las pruebas con proveedores simulados verifican la integración y el aislamiento. La disponibilidad del video, los subtítulos, la calidad y los anuncios dependen del proveedor real. El nombre se centraliza en `APP_NAME`, incluidos el título y Open Graph al iniciar JavaScript. Los rastreadores que no ejecutan JavaScript reciben los metadatos estáticos genéricos.
