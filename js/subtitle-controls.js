@@ -1,4 +1,4 @@
-import { readSubtitleFile, searchSubtitles, subtitleDownload, vidRiftOrigin, vidRiftPosition, vidSparkPosition } from './subtitles.js';
+import { fetchSubtitleFile, readSubtitleFile, searchSubtitles, subtitleDownload, vidRiftOrigin, vidRiftPosition, vidSparkPosition } from './subtitles.js';
 
 export function setupSubtitleControls(player) {
   const $ = (id) => document.getElementById(id);
@@ -20,7 +20,7 @@ export function setupSubtitleControls(player) {
   let fileRevision = 0;
 
   const currentTime = () => seconds + (startedAt === null ? 0 : (performance.now() - startedAt) / 1000);
-  const credentials = () => ({ key: $('subtitle-key').value.trim(), token: $('subtitle-token').value.trim() });
+  const accountToken = () => $('subtitle-token').value.trim();
 
   function render() {
     const time = currentTime() - (Number($('subtitle-delay').value) || 0);
@@ -167,25 +167,17 @@ export function setupSubtitleControls(player) {
 
   function showRequestError(error, signal) {
     if (signal.aborted) return;
-    status.textContent = error instanceof TypeError || error.name === 'TimeoutError'
-      ? 'No se pudo conectar con OpenSubtitles. También puedes descargar el archivo en su sitio y cargarlo aquí.'
-      : error.message;
+    status.textContent = `${error.message} También puedes descargar un archivo y cargarlo aquí.`;
   }
 
   $('subtitle-search').addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!target) return;
-    const auth = credentials();
-    if (!auth.key) {
-      status.textContent = 'Ingresa tu clave de API de OpenSubtitles para buscar.';
-      $('subtitle-key').focus();
-      return;
-    }
     const signal = beginRequest();
     results.replaceChildren();
     status.textContent = 'Buscando subtítulos…';
     try {
-      const tracks = await searchSubtitles(target, $('subtitle-language').value, auth, signal);
+      const tracks = await searchSubtitles(target, $('subtitle-language').value, accountToken(), signal);
       if (signal.aborted) return;
       status.textContent = tracks.length ? 'Elige la versión que corresponda a tu video.' : 'Sin resultados para este idioma.';
       for (const track of tracks) {
@@ -205,20 +197,18 @@ export function setupSubtitleControls(player) {
     const signal = beginRequest();
     status.textContent = 'Solicitando subtítulo…';
     try {
-      const url = await subtitleDownload(track.id, credentials(), signal);
+      const { url, remaining } = await subtitleDownload(track.id, accountToken(), signal);
       if (signal.aborted) return;
       download.href = url;
       download.hidden = false;
+      const quota = Number.isInteger(remaining) ? ` Descargas restantes: ${remaining}.` : '';
       try {
-        const response = await fetch(url, {
-          credentials: 'omit', referrerPolicy: 'no-referrer',
-          signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
-        });
-        if (!response.ok) throw new Error();
-        const cues = await readSubtitleFile(await response.blob());
-        if (!signal.aborted) loadTrack(cues, track.name);
-      } catch {
-        if (!signal.aborted) status.textContent = 'Descarga el archivo con el enlace y cárgalo aquí.';
+        const cues = await fetchSubtitleFile(url, signal);
+        if (signal.aborted) return;
+        loadTrack(cues, track.name);
+        status.textContent += quota;
+      } catch (error) {
+        if (!signal.aborted) status.textContent = `${error.message} Descarga el archivo con el enlace y cárgalo aquí.${quota}`;
       }
     } catch (error) { showRequestError(error, signal); }
   }

@@ -1,3 +1,5 @@
+import { OPENSUBTITLES_API_KEY } from './config.js';
+
 const api = 'https://api.opensubtitles.com/api/v1';
 const maxBytes = 2 * 1024 * 1024;
 
@@ -33,22 +35,47 @@ export function subtitleQuery(target, language) {
   return params;
 }
 
-async function openSubtitles(path, credentials, signal, body) {
-  const headers = { 'Api-Key': credentials.key, 'X-User-Agent': 'Fotograma v1', Accept: 'application/json' };
-  if (credentials.token) headers.Authorization = `Bearer ${credentials.token}`;
+async function fetchSubtitleResource(url, endpoint, signal, options) {
+  const timeout = AbortSignal.timeout(12000);
+  try {
+    return await fetch(url, {
+      ...options, credentials: 'omit', signal: AbortSignal.any([signal, timeout]),
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (timeout.aborted) throw new Error(`${endpoint}: se agotó el tiempo de espera.`);
+    throw new Error(`${endpoint}: el navegador bloqueó la solicitud o falló la conexión (posible CORS).`);
+  }
+}
+
+async function openSubtitles(path, token, signal, body) {
+  const method = body ? 'POST' : 'GET';
+  const endpoint = `${method} ${api}${path.split('?')[0]}`;
+  const key = OPENSUBTITLES_API_KEY.trim();
+  if (!key) throw new Error('Falta configurar la clave de OpenSubtitles en Fotograma.');
+  const headers = { 'Api-Key': key, 'X-User-Agent': 'Fotograma v1', Accept: 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
   if (body) headers['Content-Type'] = 'application/json';
-  const response = await fetch(api + path, {
-    method: body ? 'POST' : 'GET', headers, body: body && JSON.stringify(body),
-    credentials: 'omit', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
+  const response = await fetchSubtitleResource(api + path, endpoint, signal, {
+    method, headers, body: body && JSON.stringify(body), redirect: 'error',
   });
-  if ([401, 403].includes(response.status)) throw new Error('OpenSubtitles rechazó el acceso. Revisa la clave de API y el token.');
-  if ([406, 429].includes(response.status)) throw new Error('OpenSubtitles limitó esta solicitud. Revisa la cuota de tu cuenta.');
-  if (!response.ok) throw new Error(`OpenSubtitles respondió con un error (${response.status}).`);
+  if (response.status === 401 || response.status === 403) {
+    const detail = token
+      ? 'Revisa el token de cuenta y la clave de la aplicación.'
+      : 'Revisa la clave de la aplicación. Si se requiere acceso de cuenta, introduce tu token.';
+    throw new Error(`${endpoint}: acceso rechazado (HTTP ${response.status}). ${detail}`);
+  }
+  if (response.status === 406 || response.status === 429) {
+    const detail = token ? 'Revisa la cuota de tu cuenta o vuelve a intentarlo más tarde.'
+      : 'Si agotaste las 5 descargas anónimas por IP en 24 horas, introduce tu token de cuenta o espera a que se renueve la cuota.';
+    throw new Error(`${endpoint}: solicitud limitada (HTTP ${response.status}). ${detail}`);
+  }
+  if (!response.ok) throw new Error(`${endpoint}: error HTTP ${response.status}.`);
   return response.json();
 }
 
-export async function searchSubtitles(target, language, credentials, signal) {
-  const payload = await openSubtitles(`/subtitles?${subtitleQuery(target, language)}`, credentials, signal);
+export async function searchSubtitles(target, language, token, signal) {
+  const payload = await openSubtitles(`/subtitles?${subtitleQuery(target, language)}`, token, signal);
   if (!Array.isArray(payload.data)) throw new Error('OpenSubtitles devolvió un catálogo inesperado.');
   return payload.data.flatMap(({ attributes }) => Array.isArray(attributes?.files)
     ? attributes.files.map((file) => ({
@@ -57,14 +84,22 @@ export async function searchSubtitles(target, language, credentials, signal) {
     })) : []).filter(({ id }) => Number.isSafeInteger(id) && id > 0).slice(0, 30);
 }
 
-export async function subtitleDownload(id, credentials, signal) {
-  const payload = await openSubtitles('/download', credentials, signal, { file_id: id });
-  const url = new URL(payload.link);
-  if (url.protocol !== 'https:' || !['www.opensubtitles.com', 'opensubtitles.com'].includes(url.hostname) ||
+export async function subtitleDownload(id, token, signal) {
+  const payload = await openSubtitles('/download', token, signal, { file_id: id });
+  const url = URL.parse(payload.link);
+  if (!url || url.protocol !== 'https:' || !['www.opensubtitles.com', 'opensubtitles.com'].includes(url.hostname) ||
       url.username || url.password || !url.pathname.startsWith('/download/')) {
-    throw new Error('OpenSubtitles devolvió una dirección de descarga inesperada.');
+    throw new Error('POST https://api.opensubtitles.com/api/v1/download: enlace de archivo inesperado.');
   }
-  return url.href;
+  return { url: url.href, remaining: payload.remaining };
+}
+
+export async function fetchSubtitleFile(url, signal) {
+  // El enlace contiene una firma temporal. El diagnóstico muestra la ruta pública.
+  const endpoint = `GET ${new URL(url).origin}/download/… (archivo)`;
+  const response = await fetchSubtitleResource(url, endpoint, signal, { referrerPolicy: 'no-referrer' });
+  if (!response.ok) throw new Error(`${endpoint}: error HTTP ${response.status}.`);
+  return readSubtitleFile(await response.blob());
 }
 
 export async function readSubtitleFile(file) {

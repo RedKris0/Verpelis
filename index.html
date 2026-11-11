@@ -91,11 +91,11 @@
           <label class="field">Cargar archivo SRT o WebVTT<input id="subtitle-file" type="file" accept=".srt,.vtt"></label>
           <p id="subtitle-track" class="player-note"></p>
           <form id="subtitle-search" class="subtitle-search">
-            <label class="field">Clave de API de OpenSubtitles<input id="subtitle-key" type="password" autocomplete="off" spellcheck="false"></label>
             <label class="field">Token de cuenta (opcional)<input id="subtitle-token" type="password" autocomplete="off" spellcheck="false"></label>
             <label class="field subtitle-language">Idioma<select id="subtitle-language"><option value="es">Español</option><option value="ea">Español latinoamericano</option><option value="en">Inglés</option><option value="pt-br">Portugués (Brasil)</option></select></label>
             <button class="button primary" type="submit">Buscar en OpenSubtitles</button>
           </form>
+          <p class="player-note">Sin token, OpenSubtitles permite hasta 5 descargas por IP en 24 horas.</p>
           <p class="player-note"><a href="https://www.opensubtitles.com/es" target="_blank" rel="noopener noreferrer">Abrir OpenSubtitles</a></p>
           <p id="subtitle-status" class="player-note" role="status"></p>
           <a id="subtitle-download" target="_blank" rel="noopener noreferrer" hidden>Descargar archivo</a>

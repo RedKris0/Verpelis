@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { APP_NAME, TMDB_API_KEY } from '../js/config.js';
+import { APP_NAME, OPENSUBTITLES_API_KEY, TMDB_API_KEY } from '../js/config.js';
 import { Availability, getSources, playbackKey, providers, selectSource } from '../js/providers.js';
 
 assert.ok(APP_NAME.trim());
 assert.ok(TMDB_API_KEY.trim());
+assert.ok(OPENSUBTITLES_API_KEY.trim());
 assert.ok(providers.length > 1);
 assert.ok(!providers.some(({ id }) => id === 'videasy'));
 assert.equal(new Set(providers.map(({ id }) => id)).size, providers.length);
@@ -82,6 +83,8 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 assert.doesNotMatch(html, /id=["']apikey["']/);
 assert.ok(!html.includes(TMDB_API_KEY));
+assert.doesNotMatch(html, /id=["']subtitle-key["']/);
+assert.match(html, /id=["']subtitle-token["']/);
 assert.doesNotMatch(app, /innerHTML|outerHTML|insertAdjacentHTML/);
 assert.match(html, /sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"/);
 assert.doesNotMatch(html, /allow-popups|allow-top-navigation/);
@@ -102,7 +105,7 @@ assert.match(app, /dialog\.addEventListener\('close',[\s\S]*?clearSources\(\)/);
 
 console.log('Comprobaciones de configuración, selección, disponibilidad y seguridad superadas.');
 
-const { parseSubtitles, readSubtitleFile, subtitleQuery, vidRiftPosition, vidSparkPosition } = await import('../js/subtitles.js');
+const { fetchSubtitleFile, parseSubtitles, readSubtitleFile, searchSubtitles, subtitleDownload, subtitleQuery, vidRiftPosition, vidSparkPosition } = await import('../js/subtitles.js');
 const srt = '\uFEFF1\r\n00:00:01,500 --> 00:00:03,250\r\n<i>Hola</i>\r\nMundo\r\n\r\n2\r\n00:00:05,000 --> 00:00:04,000\r\nInválido';
 assert.deepEqual(parseSubtitles(srt), [{ start: 1.5, end: 3.25, caption: 'Hola\nMundo' }]);
 assert.deepEqual(parseSubtitles('WEBVTT\n\nNOTE comentario\n\n00:05.000 --> 00:06.000 align:center\nHola'),
@@ -123,3 +126,30 @@ const riftEvent = { source: frame, origin: 'https://embed.vidrift.net',
   data: { type: 'vidrift:paused', tmdbId: '4087', mediaType: 'tv', season: 2, episode: 3, currentTime: 42 } };
 assert.deepEqual(vidRiftPosition(riftEvent, frame, episode), { currentTime: 42, running: false });
 assert.equal(vidRiftPosition(riftEvent, frame, { ...episode, episode: 4 }), null);
+
+const originalFetch = globalThis.fetch;
+const signal = new AbortController().signal;
+const downloadLink = 'https://www.opensubtitles.com/download/temporary/subfile/prueba.srt';
+try {
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://api.opensubtitles.com/api/v1/download');
+    assert.equal(options.method, 'POST');
+    assert.ok(options.headers['Api-Key'] === OPENSUBTITLES_API_KEY);
+    assert.equal(options.headers.Authorization, undefined);
+    return Response.json({ link: downloadLink, remaining: 4 });
+  };
+  assert.deepEqual(await subtitleDownload(123, '', signal), { url: downloadLink, remaining: 4 });
+
+  globalThis.fetch = async (url, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer token-de-prueba');
+    return Response.json({}, { status: 406 });
+  };
+  await assert.rejects(subtitleDownload(123, 'token-de-prueba', signal), /POST .*\/api\/v1\/download.*406/);
+
+  globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  await assert.rejects(searchSubtitles(movie, 'es', '', signal), /GET .*\/api\/v1\/subtitles.*CORS/);
+  await assert.rejects(subtitleDownload(123, '', signal), /POST .*\/api\/v1\/download.*CORS/);
+  await assert.rejects(fetchSubtitleFile(downloadLink, signal), /GET https:\/\/www\.opensubtitles\.com\/download\/….*CORS/);
+} finally {
+  globalThis.fetch = originalFetch;
+}
