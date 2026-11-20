@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { APP_NAME, TMDB_API_KEY } from '../js/config.js';
-import { providers } from '../js/providers.js';
+import { playbackUrl, providers } from '../js/providers.js';
 
 assert.ok(APP_NAME.trim());
 assert.ok(TMDB_API_KEY.trim());
-assert.equal(providers[0].id, 'videasy');
+assert.equal(providers[0].id, 'vidlink');
 assert.equal(new Set(providers.map((provider) => provider.id)).size, providers.length);
 
 for (const provider of providers) {
@@ -16,15 +16,27 @@ for (const provider of providers) {
   assert.equal(tv.protocol, 'https:');
 }
 
-const videasy = providers[0];
+const videasy = providers.find(({ id }) => id === 'videasy');
 const tv = new URL(videasy.tv(1399, 2, 3));
 assert.equal(tv.pathname, '/tv/1399/2/3');
 assert.equal(new URL(videasy.movie(550)).pathname, '/movie/550');
-for (const parameter of ['nextEpisode', 'autoplayNextEpisode', 'episodeSelector', 'overlay']) {
-  assert.equal(tv.searchParams.get(parameter), 'true');
+for (const parameter of ['nextEpisode', 'autoplayNextEpisode', 'episodeSelector']) {
+  assert.equal(tv.searchParams.get(parameter), 'false');
 }
+assert.equal(tv.searchParams.get('overlay'), 'true');
 assert.equal(tv.searchParams.get('playsinline'), '1');
 assert.equal(tv.searchParams.get('color'), '8B5CF6');
+
+const pony = { id: 33765, media_type: 'tv' };
+const crystalling = { season_number: 6, episode_number: 1 };
+const subtitles = { language: 'es', vtt: 'https://example.com/sub.vtt?x=a&y=b' };
+const [vidlink, videasyWs] = providers;
+assert.equal(playbackUrl(vidlink, pony, crystalling, subtitles).pathname, '/tv/33765/6/1');
+assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).pathname, '/embed/tv/33765/6/1');
+assert.equal(playbackUrl(vidlink, pony, crystalling, subtitles).searchParams.get('sub_file'), subtitles.vtt);
+assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).searchParams.get('ds_lang'), 'es');
+assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).searchParams.has('sub_file'), false);
+assert.equal(playbackUrl(videasy, pony, crystalling, subtitles).searchParams.has('ds_lang'), false);
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');

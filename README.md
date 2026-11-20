@@ -19,11 +19,13 @@ En Settings → Pages selecciona Deploy from a branch, rama `main`, carpeta `/ (
 
 ## Reproductores, series e historial
 
-Videasy es el único proveedor real incluido. `js/providers.js` exporta el registro de objetos `{id, nombre, movie(tmdbId), tv(tmdbId, season, episode)}`. En la sección **AÑADIR PROVEEDORES AQUÍ** hay dos ejemplos comentados con dominios `.invalid`. Reemplaza las plantillas por las URLs HTTPS de tus proveedores y descomenta los objetos. Usa un `id` único por proveedor.
+El sitio incluye [VidLink](https://vidlink.pro/), seleccionado por defecto en instalaciones nuevas, [Videasy (.ws)](https://videasy.ws/docs.html) y Videasy clásico. `js/providers.js` contiene el registro y dos plantillas comentadas para agregar proveedores HTTPS con un `id` único.
 
-El selector muestra el proveedor actual y recuerda la elección. El botón para probar otro rota por los proveedores configurados. Con uno solo aparece desactivado y se explica cómo añadir más. Subtítulos y calidad los controla el reproductor embebido de cada proveedor.
+El selector recuerda el último proveedor. Si el video no carga o corresponde a otro capítulo, usa **Probar otro proveedor**. El cambio conserva la temporada y el episodio tal como los identifica TMDB.
 
-Las temporadas y episodios proceden de TMDB. Puedes elegirlos antes de reproducir y usar anterior/siguiente, incluso entre temporadas. Al volver a una serie se recupera el último episodio abierto. Los cambios hechos dentro del iframe, incluido su avance automático, no actualizan los selectores externos. La página no recibe eventos de progreso del proveedor.
+El reproductor muestra la temporada, el número y el título del capítulo según TMDB. El caso de *My Little Pony: Friendship Is Magic* se comprueba con el ID 33765. Su T6E1 es «The Crystalling (1)» y cada proveedor recibe `33765/6/1`. Usa **Anterior** y **Siguiente** de Fotograma para mantener sincronizados los selectores y el historial. Si la fuente entrega otro video para esa URL, Fotograma no puede verificar su contenido desde fuera del iframe.
+
+En **Subtítulos**, Videasy (.ws) permite pedir español o inglés como idioma preferido. Fotograma recuerda la elección. VidLink admite un enlace HTTPS directo y público a un archivo WebVTT (`.vtt`), que se comparte con el proveedor al pulsar **Aplicar y recargar** y se borra al cambiar de capítulo o título. La disponibilidad de las pistas, su sincronía, el audio y la calidad dependen del reproductor.
 
 **Seguir viendo** conserva los últimos 18 títulos y el episodio seleccionado, sin guardar minutos de reproducción. Puedes borrar el historial. Se almacena en este navegador con `localStorage`, igual que el último proveedor. Si el navegador bloquea el almacenamiento, funciona durante la sesión y muestra un aviso al intentar guardar.
 
@@ -47,7 +49,8 @@ Un script de esta página no puede inspeccionar ni filtrar anuncios dentro de un
 
 | Proveedor | Modo seguro | Resultado |
 | --- | --- | --- |
-| Videasy | Activado por defecto | Reproducción pendiente de verificar. En este entorno Chrome rechaza el certificado del destino al que redirige Videasy, antes de cargar el reproductor. |
+| VidLink y Videasy (.ws) | Activado por defecto | Ambos mostraron un aviso de bloqueo con sandbox. En una prueba de Chrome sin sandbox, ambos mostraron el encabezado de T6E1 de *My Little Pony*. El encabezado confirma la selección, pero no verifica el contenido del video. |
+| Videasy clásico | Activado por defecto | Redirige a un dominio al que no se logró acceder desde este entorno. |
 | Ejemplos 1 y 2 | Sin activar | Plantillas comentadas, sin proveedor real ni prueba de reproducción. |
 
 El atributo sandbox se comprueba por separado de la reproducción externa. No se declara compatible un proveedor cuyo video no pudo verificarse. Usa las plantillas solo para reproductores HTTPS de otro origen que consideres fiables.

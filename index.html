@@ -65,12 +65,28 @@
       <p id="episode-status" class="status" role="status" hidden></p>
       <p id="player-status" class="status" role="status" hidden></p>
       <section id="playback" aria-label="Reproductor" hidden>
-        <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">¿No carga? Probar otro proveedor</button></div>
+        <div class="player-toolbar"><div class="field"><label for="provider">Proveedor</label><select id="provider"></select></div><button id="rotate-provider" class="button secondary" type="button">Probar otro proveedor</button></div>
         <label class="safe-mode"><input id="safe-mode" type="checkbox" role="switch" checked> Modo seguro (bloquear popups)</label>
+        <p id="sandbox-note" class="player-note" role="status" hidden></p>
         <p class="player-note">Si lo desactivas se recarga el video y el proveedor podrá abrir ventanas o redirigir la página. Este modo no filtra anuncios dentro del video.</p>
-        <p id="provider-note" class="player-note"></p>
-        <p id="now-playing" class="now-playing"></p><iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
-        <p class="player-note">Los subtítulos y la calidad se eligen dentro del reproductor.</p>
+        <p class="player-note">Si el video muestra otro capítulo, prueba otro proveedor. Fotograma conserva la temporada y el episodio seleccionados.</p>
+        <p id="now-playing" class="now-playing" aria-live="polite"></p>
+        <details id="subtitle-settings">
+          <summary>Subtítulos</summary>
+          <form id="subtitle-form" class="player-toolbar" aria-label="Ajustes de subtítulos">
+            <div id="subtitle-language-field" class="field" hidden>
+              <label for="subtitle-language">Idioma preferido de los subtítulos</label>
+              <select id="subtitle-language" name="language" aria-describedby="subtitle-help"><option value="">Predeterminado</option><option value="es">Español</option><option value="en">Inglés</option></select>
+            </div>
+            <div id="subtitle-vtt-field" class="field" hidden>
+              <label for="subtitle-vtt">Enlace HTTPS del archivo WebVTT</label>
+              <input id="subtitle-vtt" name="vtt" type="url" autocomplete="off" spellcheck="false" aria-describedby="subtitle-help" maxlength="2048">
+            </div>
+            <button class="button secondary" type="submit">Aplicar y recargar</button>
+          </form>
+          <p id="subtitle-help" class="player-note"></p>
+        </details>
+        <iframe id="player" title="Reproductor de video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
       </section>
     </div>
   </dialog>

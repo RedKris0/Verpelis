@@ -1,5 +1,5 @@
 import { APP_NAME, TMDB_API_KEY } from './config.js';
-import { providers } from './providers.js';
+import { playbackUrl, providers } from './providers.js';
 
 const $ = (id) => document.getElementById(id);
 const results = $('results');
@@ -17,6 +17,10 @@ let seasonController;
 let seasons = [];
 let episodes = [];
 let loadingSeason = false;
+let subtitleLanguage = readStorage('fotograma.subtitleLanguage', '');
+if (!['es', 'en'].includes(subtitleLanguage)) subtitleLanguage = '';
+let subtitleVtt = '';
+let playbackKey = '';
 let history = readStorage('fotograma.history', []);
 if (!Array.isArray(history)) history = [];
 history = history.filter((item) => item && Number.isSafeInteger(item.id) && item.id > 0 && ['movie', 'tv'].includes(item.media_type)).slice(0, 18);
@@ -31,7 +35,7 @@ document.querySelectorAll('[data-app-name]').forEach((node) => { node.textConten
 providers.forEach((provider) => $('provider').add(new Option(provider.nombre, provider.id)));
 $('provider').value = providerId || '';
 $('rotate-provider').disabled = providers.length < 2;
-$('provider-note').textContent = providers.length < 2 ? 'Solo hay un proveedor configurado. Puedes añadir los tuyos en js/providers.js.' : 'Prueba otro proveedor si este no reproduce.';
+$('subtitle-language').value = subtitleLanguage;
 
 function readStorage(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -48,12 +52,12 @@ function renderHistory() {
   $('history-results').replaceChildren(...history.map(card));
 }
 
-function saveHistory() {
+function saveHistory(episode) {
   const entry = {
     id: selected.id, media_type: selected.media_type, title: titleOf(selected),
     release_date: selected.release_date || selected.first_air_date,
     poster_path: selected.poster_path, vote_average: selected.vote_average,
-    season: Number($('season').value), episode: Number($('episode').value),
+    season: episode?.season_number, episode: episode?.episode_number,
   };
   history = [entry, ...history.filter((item) => item.id !== entry.id || item.media_type !== entry.media_type)].slice(0, 18);
   writeStorage('fotograma.history', history);
@@ -176,6 +180,8 @@ async function openDetail(item, trigger) {
   detailController = new AbortController();
   const controller = detailController;
   selected = null;
+  playbackKey = '';
+  $('subtitle-settings').open = false;
   seasonController?.abort();
   seasons = [];
   episodes = [];
@@ -227,7 +233,9 @@ async function loadSeason(preferredEpisode, last = false) {
   const controller = new AbortController();
   seasonController = controller;
   const resume = !$('playback').hidden;
+  const season = Number($('season').value);
   player.removeAttribute('src');
+  $('now-playing').textContent = '';
   episodes = [];
   loadingSeason = true;
   $('episode').replaceChildren();
@@ -236,9 +244,12 @@ async function loadSeason(preferredEpisode, last = false) {
   updateEpisodeButtons();
   message('episode-status', 'Cargando episodios…');
   try {
-    const data = await tmdb(`/tv/${selected.id}/season/${$('season').value}`, {}, controller.signal);
+    const data = await tmdb(`/tv/${selected.id}/season/${season}`, {}, controller.signal);
     if (controller.signal.aborted) return;
-    episodes = (Array.isArray(data.episodes) ? data.episodes : []).filter((episode) => episode && Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0);
+    if (data.season_number !== season) throw new Error('TMDB devolvió otra temporada. Selecciona la temporada de nuevo.');
+    episodes = (Array.isArray(data.episodes) ? data.episodes : [])
+      .filter((episode) => episode?.season_number === season && Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0)
+      .sort((a, b) => a.episode_number - b.episode_number);
     $('episode').replaceChildren(...episodes.map((episode) => new Option(`${episode.episode_number}. ${episode.name || 'Sin título'}`, episode.episode_number)));
     const initial = episodes.find((episode) => episode.episode_number === preferredEpisode) || (last ? episodes.at(-1) : episodes[0]);
     if (initial) $('episode').value = String(initial.episode_number);
@@ -275,12 +286,18 @@ function moveEpisode(direction) {
 
 function play() {
   const provider = providers.find((entry) => entry.id === providerId);
-  if (!selected || !provider || (selected.media_type === 'tv' && !episodes.length)) return;
-  const season = Number($('season').value);
-  const episode = Number($('episode').value);
+  if (!selected || !provider) return;
+  const episode = selected.media_type === 'tv' ? episodes.find((item) =>
+    item.season_number === Number($('season').value) && item.episode_number === Number($('episode').value)) : null;
+  if (selected.media_type === 'tv' && !episode) return;
+  const key = `${selected.media_type}/${selected.id}/${episode?.season_number}/${episode?.episode_number}`;
+  if (key !== playbackKey) {
+    subtitleVtt = '';
+    playbackKey = key;
+  }
   let url;
   try {
-    url = new URL(selected.media_type === 'tv' ? provider.tv(selected.id, season, episode) : provider.movie(selected.id));
+    url = playbackUrl(provider, selected, episode, { language: subtitleLanguage, vtt: subtitleVtt });
     if (url.protocol !== 'https:' || url.origin === location.origin) throw new Error();
   } catch {
     player.removeAttribute('src');
@@ -289,12 +306,27 @@ function play() {
   }
   message('player-status');
   $('safe-mode').checked = safeModes[providerId] !== false;
+  message('sandbox-note', provider.requiresUnsandboxed && $('safe-mode').checked
+    ? 'Este proveedor bloquea la reproducción en modo seguro. Puedes cambiar de proveedor o desactivar el modo seguro si confías en él.'
+    : '');
   if ($('safe-mode').checked) player.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
   else player.removeAttribute('sandbox');
-  $('now-playing').textContent = `${titleOf(selected)}${selected.media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${provider.nombre}`;
+  $('subtitle-language-field').hidden = provider.subtitle !== 'language';
+  $('subtitle-vtt-field').hidden = provider.subtitle !== 'vtt';
+  $('subtitle-form').hidden = !provider.subtitle;
+  $('subtitle-language').value = subtitleLanguage;
+  $('subtitle-vtt').value = subtitleVtt;
+  $('subtitle-vtt').setCustomValidity('');
+  $('subtitle-help').textContent = {
+    language: 'Se pide este idioma al proveedor cuando hay una pista disponible. Puedes cambiarla dentro del video.',
+    vtt: 'Usa un enlace público directo al archivo .vtt de este capítulo o película. Se comparte con VidLink al aplicar. Borra el enlace y vuelve a aplicar para quitar la pista.',
+  }[provider.subtitle] || 'Elige los subtítulos dentro del reproductor.';
+  const episodeTitle = episode ? ` · T${episode.season_number}E${episode.episode_number} · ${episode.name || 'Sin título'}` : '';
+  $('now-playing').textContent = `${titleOf(selected)}${episodeTitle} · ${provider.nombre}`;
+  player.title = $('now-playing').textContent;
   player.src = url.href;
   $('playback').hidden = false;
-  saveHistory();
+  saveHistory(episode);
   $('playback').scrollIntoView({ block: 'nearest' });
 }
 
@@ -314,6 +346,27 @@ $('next').addEventListener('click', () => moveEpisode(1));
 $('provider').addEventListener('change', () => {
   providerId = $('provider').value;
   writeStorage('fotograma.provider', providerId);
+  play();
+});
+$('subtitle-vtt').addEventListener('input', (event) => event.target.setCustomValidity(''));
+$('subtitle-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const provider = providers.find((entry) => entry.id === providerId);
+  if (!player.hasAttribute('src')) return;
+  if (provider?.subtitle === 'vtt') {
+    const input = $('subtitle-vtt');
+    const value = input.value.trim();
+    const url = URL.canParse(value) ? new URL(value) : null;
+    if (value && (url?.protocol !== 'https:' || url.username || url.password || !/\.vtt$/i.test(url.pathname))) {
+      input.setCustomValidity('Introduce un enlace HTTPS directo a un archivo .vtt.');
+      input.reportValidity();
+      return;
+    }
+    subtitleVtt = value;
+  } else if (provider?.subtitle === 'language') {
+    subtitleLanguage = $('subtitle-language').value;
+    writeStorage('fotograma.subtitleLanguage', subtitleLanguage);
+  }
   play();
 });
 $('safe-mode').addEventListener('change', () => {
@@ -344,7 +397,7 @@ dialog.addEventListener('close', () => {
 });
 dialog.addEventListener('keydown', (event) => {
   if (event.key !== 'Tab') return;
-  const controls = [...dialog.querySelectorAll('button, input, select, a[href], iframe')].filter((node) => !node.disabled && node.getClientRects().length);
+  const controls = [...dialog.querySelectorAll('button, input, select, summary, a[href], iframe')].filter((node) => !node.disabled && node.getClientRects().length);
   const first = controls[0];
   const last = controls.at(-1);
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
