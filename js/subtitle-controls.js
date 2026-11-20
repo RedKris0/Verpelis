@@ -195,6 +195,10 @@ export function setupSubtitleControls(player) {
 
   function showRequestError(error, signal) {
     if (signal.aborted) return;
+    if (/HTTP 503\b/.test(error.message)) {
+      status.textContent = 'OpenSubtitles no está disponible por el momento. Puedes volver a intentar desde este panel.';
+      return;
+    }
     status.textContent = /HTTP (406|429)\b/.test(error.message)
       ? 'Se alcanzó el límite temporal de subtítulos. Prueba más tarde o elige una pista del reproductor.'
       : 'No se pudieron obtener los subtítulos. Prueba más tarde o elige una pista del reproductor si está disponible.';

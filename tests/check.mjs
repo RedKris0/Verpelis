@@ -147,6 +147,12 @@ try {
     return Response.json({ link: downloadLink, remaining: 4 });
   };
   assert.deepEqual(await subtitleDownload(123, '', signal), { url: downloadLink, remaining: 4 });
+  let attempts = 0;
+  globalThis.fetch = async () => ++attempts === 1
+    ? new Response(null, { status: 503 })
+    : Response.json({ link: downloadLink, remaining: 4 });
+  assert.deepEqual(await subtitleDownload(123, '', signal), { url: downloadLink, remaining: 4 });
+  assert.equal(attempts, 2);
 
   globalThis.fetch = async (url, options) => {
     assert.equal(options.headers.Authorization, 'Bearer token-de-prueba');

@@ -56,9 +56,15 @@ async function openSubtitles(path, token, signal, body) {
   const headers = { 'Api-Key': key, 'X-User-Agent': 'Fotograma v1', Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body) headers['Content-Type'] = 'application/json';
-  const response = await fetchSubtitleResource(api + path, endpoint, signal, {
+  const options = {
     method, headers, body: body && JSON.stringify(body), redirect: 'error',
-  });
+  };
+  let response = await fetchSubtitleResource(api + path, endpoint, signal, options);
+  if (response.status === 503 && !response.headers.has('Retry-After')) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    signal.throwIfAborted();
+    response = await fetchSubtitleResource(api + path, endpoint, signal, options);
+  }
   if (response.status === 401 || response.status === 403) {
     const detail = token
       ? 'Revisa el token de cuenta y la clave de la aplicación.'
