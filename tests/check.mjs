@@ -20,6 +20,8 @@ for (const source of [...movieSources, ...episodeSources]) {
 }
 const urls = (sources) => Object.fromEntries(sources.map(({ id, url }) => [id, url]));
 assert.deepEqual(urls(movieSources), {
+  vidlink: 'https://vidlink.pro/movie/15856',
+  'videasy-ws': 'https://player.videasy.ws/embed/movie/15856',
   'internet-archive': 'https://archive.org/embed/HouseOnHauntedHill1959',
   vidspark: 'https://vidspark.to/movie/15856',
   vidrift: 'https://embed.vidrift.net/embed/movie/15856',
@@ -27,7 +29,13 @@ assert.deepEqual(urls(movieSources), {
   'vidsrc-to': 'https://vidsrc.to/embed/movie/15856',
   autoembed: 'https://autoembed.me/movie/tmdb/15856',
 });
+const miraculous = urls(getSources({ id: 65334, media_type: 'tv', season: 6, episode: 1 }, pageOrigin));
+assert.equal(miraculous.vidlink, 'https://vidlink.pro/tv/65334/6/1?nextbutton=false');
+assert.equal(miraculous['videasy-ws'], 'https://player.videasy.ws/embed/tv/65334/6/1?autonext=0');
+
 assert.deepEqual(urls(episodeSources), {
+  vidlink: 'https://vidlink.pro/tv/4087/2/3?nextbutton=false',
+  'videasy-ws': 'https://player.videasy.ws/embed/tv/4087/2/3?autonext=0',
   vidspark: 'https://vidspark.to/tv/4087/2/3',
   vidrift: 'https://embed.vidrift.net/embed/tv/4087/2/3?hide=next,episodes',
   '2embed-cc': 'https://www.2embed.cc/embedtv/4087&s=2&e=3',

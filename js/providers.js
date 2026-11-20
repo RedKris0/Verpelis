@@ -34,6 +34,16 @@ export const providers = [
     movie: (id) => `https://autoembed.me/movie/tmdb/${id}`,
     tv: (id, season, episode) => `https://autoembed.me/tv/tmdb/${id}-${season}-${episode}`,
   },
+  {
+    id: 'vidlink', nombre: 'VidLink', category: 'alternative', requiresUnsandboxed: true,
+    movie: (id) => `https://vidlink.pro/movie/${id}`,
+    tv: (id, season, episode) => `https://vidlink.pro/tv/${id}/${season}/${episode}?nextbutton=false`,
+  },
+  {
+    id: 'videasy-ws', nombre: 'Videasy (.ws)', category: 'alternative', requiresUnsandboxed: true,
+    movie: (id) => `https://player.videasy.ws/embed/movie/${id}`,
+    tv: (id, season, episode) => `https://player.videasy.ws/embed/tv/${id}/${season}/${episode}?autonext=0`,
+  },
 ];
 
 export const Availability = Object.freeze({

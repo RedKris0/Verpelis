@@ -253,6 +253,7 @@ async function loadSeason(preferredEpisode, last = false) {
   const controller = new AbortController();
   seasonController = controller;
   const resume = !$('playback').hidden;
+  const season = Number($('season').value);
   clearSources();
   episodes = [];
   loadingSeason = true;
@@ -262,9 +263,12 @@ async function loadSeason(preferredEpisode, last = false) {
   updateEpisodeButtons();
   message('episode-status', 'Cargando episodios…');
   try {
-    const data = await tmdb(`/tv/${selected.id}/season/${$('season').value}`, {}, controller.signal);
+    const data = await tmdb(`/tv/${selected.id}/season/${season}`, {}, controller.signal);
     if (controller.signal.aborted) return;
-    episodes = (Array.isArray(data.episodes) ? data.episodes : []).filter((episode) => episode && Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0);
+    if (data.season_number !== season) throw new Error('TMDB devolvió otra temporada. Selecciona la temporada de nuevo.');
+    episodes = (Array.isArray(data.episodes) ? data.episodes : [])
+      .filter((episode) => episode?.season_number === season && Number.isSafeInteger(episode.episode_number) && episode.episode_number > 0)
+      .sort((a, b) => a.episode_number - b.episode_number);
     $('episode').replaceChildren(...episodes.map((episode) => new Option(`${episode.episode_number}. ${episode.name || 'Sin título'}`, episode.episode_number)));
     const initial = episodes.find((episode) => episode.episode_number === preferredEpisode) || (last ? episodes.at(-1) : episodes[0]);
     if (initial) $('episode').value = String(initial.episode_number);
@@ -379,7 +383,9 @@ function play({ retry = false } = {}) {
   const safe = usesSafeMode(activeSource.id);
   const blocked = safe && activeSource.requiresUnsandboxed;
   $('safe-mode').checked = safe;
-  $('now-playing').textContent = `${titleOf(selected)}${media_type === 'tv' ? ` · T${season} · E${episode}` : ''} · ${activeSource.nombre}`;
+  const chapter = episodes.find((item) => item.season_number === season && item.episode_number === episode);
+  const chapterLabel = media_type === 'tv' ? ` · T${season}E${episode} · ${chapter?.name || 'Sin título'}` : '';
+  $('now-playing').textContent = `${titleOf(selected)}${chapterLabel} · ${activeSource.nombre}`;
   $('playback').hidden = false;
   const reload = retry || player.getAttribute('src') !== activeSource.url || player.hasAttribute('sandbox') !== safe;
   if (blocked || reload) player.removeAttribute('src');

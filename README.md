@@ -114,3 +114,9 @@ El [selector público de Chouflix](https://chouflix.com/es/watch/movie/1792170) 
 
 - [VidRift](https://vidrift.net/docs/) está integrado directamente por TMDB para películas y episodios. En Chrome, *The Thing* (1982) reprodujo desde el iframe directo y una pista SRT de prueba siguió el reloj real de VidRift. VidRift documenta carga nativa de archivos de subtítulos, ajuste de sincronía y eventos de reproducción. Requiere desactivar el modo seguro de esa fuente de forma explícita.
 - [PrimeSrc](https://primesrc.me/) cargó el selector de fuente y el título, sin reproducción verificada. [VidZee](https://vidzee.wtf/) devolvió 404 para el título de prueba. Chrome rechazó el certificado de los endpoints probados de [VidNest](https://vidnest.fun/) y [VixSrc](https://vixsrc.to/). Se mantienen fuera del selector.
+
+### Selección del capítulo en Fotograma
+
+VidLink y Videasy (.ws) se pueden elegir como fuentes alternativas. Ambos rechazan el modo seguro. Puedes usar los subtítulos externos de Fotograma con estas fuentes y ajustar su reloj manualmente.
+
+Fotograma muestra el título del capítulo según TMDB. Para Miraculous (65334), TMDB lista «The Illustrhater» como T6E1 y «Climatiqueen» como T6E6. Si la numeración de otra plataforma difiere, busca el título del capítulo. El video servido sigue dependiendo del proveedor.
