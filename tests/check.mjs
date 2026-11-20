@@ -27,16 +27,20 @@ assert.equal(tv.searchParams.get('overlay'), 'true');
 assert.equal(tv.searchParams.get('playsinline'), '1');
 assert.equal(tv.searchParams.get('color'), '8B5CF6');
 
-const pony = { id: 33765, media_type: 'tv' };
-const crystalling = { season_number: 6, episode_number: 1 };
+const miraculous = { id: 65334, media_type: 'tv' };
+const illustrhater = { season_number: 6, episode_number: 1 };
 const subtitles = { language: 'es', vtt: 'https://example.com/sub.vtt?x=a&y=b' };
 const [vidlink, videasyWs] = providers;
-assert.equal(playbackUrl(vidlink, pony, crystalling, subtitles).pathname, '/tv/33765/6/1');
-assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).pathname, '/embed/tv/33765/6/1');
-assert.equal(playbackUrl(vidlink, pony, crystalling, subtitles).searchParams.get('sub_file'), subtitles.vtt);
-assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).searchParams.get('ds_lang'), 'es');
-assert.equal(playbackUrl(videasyWs, pony, crystalling, subtitles).searchParams.has('sub_file'), false);
-assert.equal(playbackUrl(videasy, pony, crystalling, subtitles).searchParams.has('ds_lang'), false);
+const vidlinkEpisode = playbackUrl(vidlink, miraculous, illustrhater, subtitles);
+const videasyEpisode = playbackUrl(videasyWs, miraculous, illustrhater, subtitles);
+const classicEpisode = playbackUrl(videasy, miraculous, illustrhater, subtitles);
+assert.equal(vidlinkEpisode.pathname, '/tv/65334/6/1');
+assert.equal(videasyEpisode.pathname, '/embed/tv/65334/6/1');
+assert.equal(classicEpisode.pathname, '/tv/65334/6/1');
+assert.equal(vidlinkEpisode.searchParams.get('sub_file'), subtitles.vtt);
+assert.equal(videasyEpisode.searchParams.get('ds_lang'), 'es');
+assert.equal(videasyEpisode.searchParams.has('sub_file'), false);
+assert.equal(classicEpisode.searchParams.has('ds_lang'), false);
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');

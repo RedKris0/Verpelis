@@ -23,7 +23,7 @@ El sitio incluye [VidLink](https://vidlink.pro/), seleccionado por defecto en in
 
 El selector recuerda el último proveedor. Si el video no carga o corresponde a otro capítulo, usa **Probar otro proveedor**. El cambio conserva la temporada y el episodio tal como los identifica TMDB.
 
-El reproductor muestra la temporada, el número y el título del capítulo según TMDB. El caso de *My Little Pony: Friendship Is Magic* se comprueba con el ID 33765. Su T6E1 es «The Crystalling (1)» y cada proveedor recibe `33765/6/1`. Usa **Anterior** y **Siguiente** de Fotograma para mantener sincronizados los selectores y el historial. Si la fuente entrega otro video para esa URL, Fotograma no puede verificar su contenido desde fuera del iframe.
+El reproductor muestra la temporada, el número y el título del capítulo según TMDB. Para *Miraculous: Las aventuras de Ladybug*, TMDB lista «The Illustrhater» como T6E1 y «Climatiqueen» como T6E6 en inglés. Para T6E1 los tres proveedores reciben `65334/6/1`. Si el título del reproductor difiere, compara el nombre además del número, ya que los catálogos pueden ordenar los capítulos de forma distinta. Usa **Anterior** y **Siguiente** de Fotograma para mantener sincronizados los selectores y el historial. Si la fuente entrega otro video para esa URL, Fotograma no puede verificar su contenido desde fuera del iframe.
 
 En **Subtítulos**, Videasy (.ws) permite pedir español o inglés como idioma preferido. Fotograma recuerda la elección. VidLink admite un enlace HTTPS directo y público a un archivo WebVTT (`.vtt`), que se comparte con el proveedor al pulsar **Aplicar y recargar** y se borra al cambiar de capítulo o título. La disponibilidad de las pistas, su sincronía, el audio y la calidad dependen del reproductor.
 
@@ -49,7 +49,7 @@ Un script de esta página no puede inspeccionar ni filtrar anuncios dentro de un
 
 | Proveedor | Modo seguro | Resultado |
 | --- | --- | --- |
-| VidLink y Videasy (.ws) | Activado por defecto | Ambos mostraron un aviso de bloqueo con sandbox. En una prueba de Chrome sin sandbox, ambos mostraron el encabezado de T6E1 de *My Little Pony*. El encabezado confirma la selección, pero no verifica el contenido del video. |
+| VidLink y Videasy (.ws) | Activado por defecto | Ambos mostraron un aviso de bloqueo con sandbox en Chrome. El encabezado del reproductor permite comparar la selección con TMDB, aunque el contenido del video solo se confirma al reproducirlo. |
 | Videasy clásico | Activado por defecto | Redirige a un dominio al que no se logró acceder desde este entorno. |
 | Ejemplos 1 y 2 | Sin activar | Plantillas comentadas, sin proveedor real ni prueba de reproducción. |
 
