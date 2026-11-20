@@ -7,7 +7,10 @@ export function setupSubtitleControls(player) {
   const layer = $('subtitle-layer');
   const status = $('subtitle-status');
   const results = $('subtitle-results');
-  const download = $('subtitle-download');
+  const native = $('subtitle-native');
+  const search = $('subtitle-search');
+  const searchButton = search.querySelector('button[type="submit"]');
+  const canSync = () => ['vidspark', 'vidrift'].includes(provider);
   const position = $('subtitle-position');
   let target;
   let provider;
@@ -20,7 +23,7 @@ export function setupSubtitleControls(player) {
   let fileRevision = 0;
 
   const currentTime = () => seconds + (startedAt === null ? 0 : (performance.now() - startedAt) / 1000);
-  const accountToken = () => $('subtitle-token').value.trim();
+
 
   function render() {
     const time = currentTime() - (Number($('subtitle-delay').value) || 0);
@@ -47,14 +50,19 @@ export function setupSubtitleControls(player) {
     if (provider === 'vidrift' && target?.media_type === 'tv') {
       player.contentWindow.postMessage({ type: 'vidrift:nextup-info', next: null }, vidRiftOrigin);
     }
-    if (automatic && cues.length) requestPosition();
+    if (provider === 'vidrift' || (automatic && cues.length)) requestPosition();
   });
 
   function loadTrack(track, label) {
     cues = track;
     $('subtitle-timing').hidden = false;
     $('subtitle-track').textContent = label;
-    status.textContent = 'Subtítulos cargados. Si el reloj no se sincroniza, indica la posición del video e inicia los subtítulos.';
+    status.textContent = canSync()
+      ? 'Subtítulos activados. Si el texto se adelanta o retrasa, ajusta el desfase.'
+      : 'Subtítulos cargados. Pulsa Iniciar subtítulos al reanudar el video y ajusta la posición si hace falta.';
+    if (native.value && native.value !== 'off' && [...native.options].some(({ value }) => value === 'off')) {
+      player.contentWindow.postMessage({ type: 'vidrift:set', subtitle: 'off' }, vidRiftOrigin);
+    }
     clock(currentTime(), startedAt !== null);
     if (automatic) requestPosition();
   }
@@ -62,6 +70,7 @@ export function setupSubtitleControls(player) {
   function clearTrack() {
     fileRevision++;
     operation?.abort();
+    searchButton.disabled = false;
     cues = [];
     $('subtitle-file').value = '';
     $('subtitle-delay').value = '0';
@@ -74,8 +83,7 @@ export function setupSubtitleControls(player) {
   function resetTrack() {
     clearTrack();
     results.replaceChildren();
-    download.hidden = true;
-    download.removeAttribute('href');
+    searchButton.disabled = false;
   }
 
   function update(nextTarget, nextProvider, reload = true) {
@@ -83,6 +91,10 @@ export function setupSubtitleControls(player) {
     if (changed || !nextTarget) resetTrack();
     target = nextTarget;
     provider = nextProvider;
+    if (reload || changed) {
+      native.replaceChildren();
+      $('subtitle-native-field').hidden = true;
+    }
     panel.hidden = !target;
     $('subtitle-auto').hidden = !['vidspark', 'vidrift'].includes(provider);
     $('subtitle-fullscreen').hidden = !provider || !stage.requestFullscreen;
@@ -109,7 +121,7 @@ export function setupSubtitleControls(player) {
   $('subtitle-clear').addEventListener('click', () => {
     clearTrack();
     panel.open = true;
-    $('subtitle-file').focus();
+    $('subtitle-language').focus();
   });
   $('subtitle-auto').addEventListener('click', () => {
     automatic = true;
@@ -117,13 +129,30 @@ export function setupSubtitleControls(player) {
     requestPosition();
   });
 
+  native.addEventListener('change', () => {
+    if (provider !== 'vidrift') return;
+    if (native.value !== 'off') clearTrack();
+    player.contentWindow.postMessage({ type: 'vidrift:set', subtitle: native.value }, vidRiftOrigin);
+  });
   window.addEventListener('message', (event) => {
-    if (!target || !automatic) return;
+    if (!target) return;
     if (provider === 'vidrift') {
       const state = vidRiftPosition(event, player.contentWindow, target);
-      if (state) clock(state.currentTime, state.running);
+      if (!state) return;
+      if (event.data.type === 'vidrift:state' && Array.isArray(event.data.subtitles)) {
+        const tracks = event.data.subtitles.filter((track) => typeof track?.value === 'string' && typeof track.label === 'string');
+        const options = tracks.map(({ value, label }) => new Option(value === 'off' ? 'Desactivados' : label, value));
+        if (options.length !== native.length || options.some((option, index) =>
+          option.value !== native.options[index].value || option.text !== native.options[index].text)) {
+          native.replaceChildren(...options);
+        }
+        native.value = event.data.subtitle;
+        $('subtitle-native-field').hidden = !tracks.some(({ value }) => value !== 'off');
+      }
+      if (automatic) clock(state.currentTime, state.running);
       return;
     }
+    if (!automatic) return;
     if (provider !== 'vidspark') return;
     const data = vidSparkPosition(event, player.contentWindow);
     if (!data) return;
@@ -160,56 +189,50 @@ export function setupSubtitleControls(player) {
     fileRevision++;
     operation?.abort();
     operation = new AbortController();
-    download.hidden = true;
-    download.removeAttribute('href');
+
     return operation.signal;
   }
 
   function showRequestError(error, signal) {
     if (signal.aborted) return;
-    status.textContent = `${error.message} También puedes descargar un archivo y cargarlo aquí.`;
+    status.textContent = /HTTP (406|429)\b/.test(error.message)
+      ? 'Se alcanzó el límite temporal de subtítulos. Prueba más tarde o elige una pista del reproductor.'
+      : 'No se pudieron obtener los subtítulos. Prueba más tarde o elige una pista del reproductor si está disponible.';
   }
 
-  $('subtitle-search').addEventListener('submit', async (event) => {
+  search.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!target) return;
     const signal = beginRequest();
     results.replaceChildren();
+    searchButton.disabled = true;
     status.textContent = 'Buscando subtítulos…';
     try {
-      const tracks = await searchSubtitles(target, $('subtitle-language').value, accountToken(), signal);
+      const tracks = await searchSubtitles(target, $('subtitle-language').value, '', signal);
       if (signal.aborted) return;
-      status.textContent = tracks.length ? 'Elige la versión que corresponda a tu video.' : 'Sin resultados para este idioma.';
+      status.textContent = tracks.length ? 'Elige una pista para activarla.' : 'No hay pistas en este idioma. Prueba otro idioma.';
       for (const track of tracks) {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'button secondary';
-        button.textContent = track.name;
+        button.textContent = `Activar ${track.name}`;
         button.addEventListener('click', () => fetchTrack(track));
         item.append(button);
         results.append(item);
       }
     } catch (error) { showRequestError(error, signal); }
+    finally { if (!signal.aborted) searchButton.disabled = false; }
   });
 
   async function fetchTrack(track) {
     const signal = beginRequest();
     status.textContent = 'Solicitando subtítulo…';
     try {
-      const { url, remaining } = await subtitleDownload(track.id, accountToken(), signal);
+      const { url } = await subtitleDownload(track.id, '', signal);
       if (signal.aborted) return;
-      download.href = url;
-      download.hidden = false;
-      const quota = Number.isInteger(remaining) ? ` Descargas restantes: ${remaining}.` : '';
-      try {
-        const cues = await fetchSubtitleFile(url, signal);
-        if (signal.aborted) return;
-        loadTrack(cues, track.name);
-        status.textContent += quota;
-      } catch (error) {
-        if (!signal.aborted) status.textContent = `${error.message} Descarga el archivo con el enlace y cárgalo aquí.${quota}`;
-      }
+      const cues = await fetchSubtitleFile(url, signal);
+      if (!signal.aborted) loadTrack(cues, track.name);
     } catch (error) { showRequestError(error, signal); }
   }
 

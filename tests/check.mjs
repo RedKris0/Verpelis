@@ -92,7 +92,7 @@ const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 assert.doesNotMatch(html, /id=["']apikey["']/);
 assert.ok(!html.includes(TMDB_API_KEY));
 assert.doesNotMatch(html, /id=["']subtitle-key["']/);
-assert.match(html, /id=["']subtitle-token["']/);
+assert.doesNotMatch(html, /id=["']subtitle-(?:token|download)["']/);
 assert.doesNotMatch(app, /innerHTML|outerHTML|insertAdjacentHTML/);
 assert.match(html, /sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"/);
 assert.doesNotMatch(html, /allow-popups|allow-top-navigation/);
