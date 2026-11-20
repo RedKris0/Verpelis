@@ -17,20 +17,37 @@ export function setupSubtitleControls(player) {
   const cancelNext = $('cancel-next');
   const nextStatus = $('next-up-status');
   let nextTimer;
-  let endingHandled = false;
+  let keepWatching = false;
   function stopAdvance() {
     clearTimeout(nextTimer);
-    cancelNext.hidden = true;
     nextStatus.textContent = '';
+    nextTimer = undefined;
   }
   $('play-next').addEventListener('click', () => {
     stopAdvance();
     nextEpisode.click();
   });
   cancelNext.addEventListener('click', () => {
+    keepWatching = true;
     stopAdvance();
-    $('play-next').focus();
+    nextUp.hidden = true;
+    $('subtitle-fullscreen').focus();
   });
+  function offerNext(current, duration, running, ended = false) {
+    if (keepWatching || target?.media_type !== 'tv' || nextEpisode.disabled) return;
+    const remaining = Number.isFinite(duration) && duration > 0 ? duration - current : Infinity;
+    nextUp.hidden = !ended && (remaining < 0 || remaining > Math.min(180, duration / 2));
+    if (!ended && (!running || nextUp.hidden || remaining > 5)) {
+      stopAdvance();
+      return;
+    }
+    if (nextTimer !== undefined) return;
+    nextStatus.textContent = 'El siguiente episodio empieza en 5 segundos.';
+    nextTimer = setTimeout(() => {
+      stopAdvance();
+      if (!nextUp.hidden) nextEpisode.click();
+    }, 5000);
+  }
   let target;
   let provider;
   let cues = [];
@@ -110,12 +127,15 @@ export function setupSubtitleControls(player) {
     if (changed || !nextTarget) resetTrack();
     target = nextTarget;
     provider = nextProvider;
-    nextUp.hidden = target?.media_type !== 'tv' || nextEpisode.disabled;
     if (reload || changed) {
       stopAdvance();
-      endingHandled = false;
+      nextUp.hidden = true;
+      if (changed) keepWatching = false;
       native.replaceChildren();
       $('subtitle-native-field').hidden = true;
+    }
+    if (!canSync()) {
+      nextUp.hidden = keepWatching || !provider || target?.media_type !== 'tv' || nextEpisode.disabled;
     }
     panel.hidden = !target;
     $('subtitle-auto').hidden = !['vidspark', 'vidrift'].includes(provider);
@@ -161,6 +181,7 @@ export function setupSubtitleControls(player) {
     if (provider === 'vidrift') {
       const state = vidRiftPosition(event, player.contentWindow, target);
       if (!state) return;
+      offerNext(state.currentTime, event.data.duration, state.running);
       if (event.data.type === 'vidrift:state' && Array.isArray(event.data.subtitles)) {
         const tracks = event.data.subtitles.filter((track) => typeof track?.value === 'string' && typeof track.label === 'string');
         const options = tracks.map(({ value, label }) => new Option(value === 'off' ? 'Desactivados' : label, value));
@@ -177,20 +198,10 @@ export function setupSubtitleControls(player) {
     if (provider !== 'vidspark') return;
     const data = vidSparkPosition(event, player.contentWindow);
     if (!data) return;
-    if (data.event === 'play' || data.event === 'seeked') stopAdvance();
-    if (data.event === 'ended' && !endingHandled && !nextUp.hidden && !nextEpisode.disabled) {
-      endingHandled = true;
-      cancelNext.hidden = false;
-      nextStatus.textContent = 'El siguiente episodio empieza en 8 segundos.';
-      nextTimer = setTimeout(() => {
-        stopAdvance();
-        if (!nextUp.hidden) nextEpisode.click();
-      }, 8000);
-    }
-    if (!automatic) return;
     const paused = ['pause', 'ended'].includes(data.event) || data.paused === true;
     const running = !paused && (['play', 'timeupdate'].includes(data.event) || data.paused === false || startedAt !== null);
-    clock(data.currentTime, running);
+    offerNext(data.currentTime, data.duration, running, data.event === 'ended');
+    if (automatic) clock(data.currentTime, running);
   });
 
   $('subtitle-fullscreen').addEventListener('click', async () => {

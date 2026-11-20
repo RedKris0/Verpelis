@@ -138,6 +138,9 @@ select { width: 100%; min-height: 46px; padding: 10px; background: var(--surface
 
 .player-stage { min-width: 0; }
 .video-area { position: relative; container-type: inline-size; }
+.next-up:not([hidden]) { position: absolute; z-index: 1; right: 3%; bottom: 22%; left: 3%; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .5rem; pointer-events: none; }
+.next-up .button { min-height: 44px; pointer-events: auto; }
+.next-up [role="status"]:not(:empty) { flex-basis: 100%; text-align: right; color: white; text-shadow: 0 1px 4px black, 0 1px 4px black; }
 .subtitle-layer { position: absolute; bottom: 13%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; max-height: 65%; overflow: hidden; padding: .2em .5em; border-radius: 5px; color: #fff; background: #000d; font-size: clamp(12px, 3.4cqw, 34px); line-height: 1.25; text-align: center; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }
 .subtitle-tools, .subtitle-timing, .subtitle-search { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .subtitle-tools { padding-block: 10px; }
