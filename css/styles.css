@@ -52,6 +52,7 @@ h1 em { color: var(--accent); font-weight: inherit; }
 .searchbar input::placeholder { color: var(--muted); }
 .searchbar input:focus-visible { outline-offset: 1px; }
 .button { min-height: 46px; padding: 12px 20px; border-radius: 8px; border: 1px solid transparent; font-size: 13px; font-weight: 700; transition: background .2s, transform .2s; }
+.external-source { display: inline-flex; align-items: center; text-decoration: none; }
 .button:hover { transform: translateY(-1px); }
 .primary { color: #17150f; background: var(--accent); }
 .primary:hover { background: #ffb09b; }

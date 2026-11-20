@@ -209,7 +209,10 @@ async function openDetail(item, trigger) {
   $('episode-controls').hidden = true;
   message('episode-status');
   message('player-status');
+  const useMiraculousCatalog = item.media_type === 'tv' && item.id === 65334;
   $('play').disabled = true;
+  $('play').hidden = useMiraculousCatalog;
+  $('miraculous-source').hidden = !useMiraculousCatalog;
   opener = trigger;
   $('detail-content').hidden = true;
   $('playback').hidden = true;
@@ -229,6 +232,7 @@ async function openDetail(item, trigger) {
     $('detail-poster').replaceChildren(poster(selected));
     $('detail-content').hidden = false;
     message('detail-status');
+    if (useMiraculousCatalog) return;
     if (selected.media_type === 'tv') {
       seasons = (Array.isArray(detail.seasons) ? detail.seasons : []).filter((season) => season && Number.isSafeInteger(season.season_number) && season.season_number >= 0 && season.episode_count > 0).sort((a, b) => a.season_number - b.season_number);
       $('episode-controls').hidden = false;

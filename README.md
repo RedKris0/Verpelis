@@ -119,4 +119,4 @@ El [selector público de Chouflix](https://chouflix.com/es/watch/movie/1792170) 
 
 VidLink y Videasy (.ws) se pueden elegir como fuentes alternativas. Ambos rechazan el modo seguro. Puedes usar los subtítulos externos de Fotograma con estas fuentes y ajustar su reloj manualmente.
 
-Fotograma muestra el título del capítulo según TMDB. Para Miraculous (65334), TMDB lista «The Illustrhater» como T6E1 y «Climatiqueen» como T6E6. Si la numeración de otra plataforma difiere, busca el título del capítulo. El video servido sigue dependiendo del proveedor.
+Fotograma muestra el título de cada capítulo según TMDB. Para la serie Miraculous (65334) abre el [catálogo en español de Miraculous.TO](https://miraculous.to/es/episodes), que organiza sus episodios con su propia numeración. El sitio se abre en otra pestaña porque impide que se incruste desde otros dominios.
