@@ -292,6 +292,7 @@ function updateEpisodeButtons() {
   const episodeIndex = episodes.findIndex((episode) => episode.episode_number === Number($('episode').value));
   $('previous').disabled = loadingSeason || episodeIndex < 0 || (seasonIndex === 0 && episodeIndex === 0);
   $('next').disabled = loadingSeason || episodeIndex < 0 || (seasonIndex === seasons.length - 1 && episodeIndex === episodes.length - 1);
+  $('next-up').hidden = $('next').disabled || selected?.media_type !== 'tv';
 }
 
 function moveEpisode(direction) {

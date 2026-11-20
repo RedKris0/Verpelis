@@ -12,6 +12,25 @@ export function setupSubtitleControls(player) {
   const searchButton = search.querySelector('button[type="submit"]');
   const canSync = () => ['vidspark', 'vidrift'].includes(provider);
   const position = $('subtitle-position');
+  const nextUp = $('next-up');
+  const nextEpisode = $('next');
+  const cancelNext = $('cancel-next');
+  const nextStatus = $('next-up-status');
+  let nextTimer;
+  let endingHandled = false;
+  function stopAdvance() {
+    clearTimeout(nextTimer);
+    cancelNext.hidden = true;
+    nextStatus.textContent = '';
+  }
+  $('play-next').addEventListener('click', () => {
+    stopAdvance();
+    nextEpisode.click();
+  });
+  cancelNext.addEventListener('click', () => {
+    stopAdvance();
+    $('play-next').focus();
+  });
   let target;
   let provider;
   let cues = [];
@@ -91,7 +110,10 @@ export function setupSubtitleControls(player) {
     if (changed || !nextTarget) resetTrack();
     target = nextTarget;
     provider = nextProvider;
+    nextUp.hidden = target?.media_type !== 'tv' || nextEpisode.disabled;
     if (reload || changed) {
+      stopAdvance();
+      endingHandled = false;
       native.replaceChildren();
       $('subtitle-native-field').hidden = true;
     }
@@ -152,10 +174,20 @@ export function setupSubtitleControls(player) {
       if (automatic) clock(state.currentTime, state.running);
       return;
     }
-    if (!automatic) return;
     if (provider !== 'vidspark') return;
     const data = vidSparkPosition(event, player.contentWindow);
     if (!data) return;
+    if (data.event === 'play' || data.event === 'seeked') stopAdvance();
+    if (data.event === 'ended' && !endingHandled && !nextUp.hidden && !nextEpisode.disabled) {
+      endingHandled = true;
+      cancelNext.hidden = false;
+      nextStatus.textContent = 'El siguiente episodio empieza en 8 segundos.';
+      nextTimer = setTimeout(() => {
+        stopAdvance();
+        if (!nextUp.hidden) nextEpisode.click();
+      }, 8000);
+    }
+    if (!automatic) return;
     const paused = ['pause', 'ended'].includes(data.event) || data.paused === true;
     const running = !paused && (['play', 'timeupdate'].includes(data.event) || data.paused === false || startedAt !== null);
     clock(data.currentTime, running);
